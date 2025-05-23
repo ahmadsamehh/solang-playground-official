@@ -1,5 +1,6 @@
 # Start from a rust base image
-FROM rust:1.83.0 as base
+#FROM rust:1.83.0 as base
+FROM rust:1.77-bookworm as base
 
 # Set the current directory
 WORKDIR /app
@@ -10,12 +11,25 @@ COPY . .
 # Start from base image
 FROM base as builder
 
-# Rust setup
-RUN rustup toolchain install stable
-RUN rustup toolchain install nightly-2024-02-04
-RUN rustup target add wasm32-unknown-unknown
-RUN cargo install cargo-make
 
+# Install system dependencies
+RUN apt-get update -y && \
+    apt-get install -y pkg-config libssl-dev
+
+
+
+# Rust setup
+#RUN rustup toolchain install stable
+#RUN rustup toolchain install nightly-2024-02-04
+#RUN rustup target add wasm32-unknown-unknown
+#RUN cargo install cargo-make
+
+
+RUN rustup update stable && \
+    rustup default stable && \
+    rustup target add wasm32-unknown-unknown
+
+RUN cargo install cargo-make --locked
 # Install Node
 RUN apt-get --yes update
 RUN apt-get --yes upgrade

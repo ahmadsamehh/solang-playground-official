@@ -4,7 +4,7 @@ skip_core_tasks = true
 
 [tasks.deps-wasm]
 script = '''
-cargo install -f wasm-bindgen-cli --version 0.2.99
+cargo install -f wasm-bindgen-cli --version 0.2.100
 '''
 
 [tasks.deps-npm]
@@ -13,10 +13,12 @@ npm install
 '''
 
 [tasks.deps-docker]
+#script = '''
+#docker pull ghcr.io/hyperledger/solang@sha256:8776a9bd756664f7bf8414710d1a799799bf6fedc1c8f9f0bda17e76749dea7a 
+#'''
 script = '''
-docker pull ghcr.io/hyperledger/solang@sha256:8776a9bd756664f7bf8414710d1a799799bf6fedc1c8f9f0bda17e76749dea7a 
+ghcr.io/hyperledger-solang/solang:latest
 '''
-
 [tasks.deps]
 dependencies = ["deps-wasm", "deps-npm", "deps-docker"]
 
@@ -47,7 +49,13 @@ cargo build -p backend --release
 '''
 
 [tasks.build]
-dependencies = ["build-server", "build-bindings", "build-app","build-frontend", "build-backend"]
+dependencies = [
+	"build-server",
+	"build-bindings",
+	"build-app",
+	"build-frontend",
+	"build-backend",
+]
 
 [tasks.clean-server]
 script = '''

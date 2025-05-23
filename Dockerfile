@@ -62,7 +62,7 @@ COPY --from=builder /app/packages/app/dist /app/packages/app/dist
 COPY --from=builder /app/target/release/backend /app/target/release/backend
 
 # Startup scripts
-COPY sysbox/on-start.sh /usr/bin
+COPY sysbox/on-start.sh /usr/bin/on-start.sh
 RUN chmod +x /usr/bin/on-start.sh
 
 # Entrypoint

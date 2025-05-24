@@ -53,3 +53,19 @@ jobs:
 
       - name: Show logs
         run: cargo make docker-log
+
+        # New steps added below for Docker push
+      - name: Log in to Docker Hub
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag Docker image
+        if: github.ref == 'refs/heads/main'
+        run: docker tag solang-playground-official-sameh ahmadsamehh/solang-playground-official-sameh:latest
+
+      - name: Push Docker image
+        if: github.ref == 'refs/heads/main'
+        run: docker push ahmadsamehh/solang-playground-official-sameh:latest

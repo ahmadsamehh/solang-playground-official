@@ -115,6 +115,7 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Run finalall-test.sh script" \
             --parameters "commands=['bash $SCRIPT_PATH']" \
+            --region $AWS_REGION \
             --query "Command.CommandId" \
             --output text)
 

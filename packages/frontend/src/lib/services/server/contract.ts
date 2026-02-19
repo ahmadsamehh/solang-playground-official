@@ -58,8 +58,11 @@ class ContractService {
   }
 
   async fundAccount(pubKey = this.pubKey()) {
-    await this.rpcService.fundAccount(pubKey, this.friendBotUrl);
-    this.acc = await this.account(pubKey);
+    const funded = await this.rpcService.fundAccount(pubKey, this.friendBotUrl || null);
+    if (!funded) {
+      throw new Error("Unable to fund account from friendbot");
+    }
+    await this.refreshAccount(pubKey);
   }
 
   pubKey() {
@@ -75,7 +78,7 @@ class ContractService {
       await this.setup();
     }
     console.log("Invoking contract:", ciData.contractId, ciData.method, ciData.args);
-    await this.fundAccount();
+    await this.ensureAccountExists();
     const op = this.makeOperation(Op_Type.INVOKE_CT_FUNC, ciData);
     const [resp, _] = await this.doTransaction([op]);
 
@@ -91,7 +94,7 @@ class ContractService {
       await this.setup();
     }
     this.wasmHash = await sha256Buffer(wasm);
-    await this.fundAccount();
+    await this.ensureAccountExists();
     const op = this.makeOperation(Op_Type.UP_CT_WASM, { wasm });
     const [_, addr] = await this.doTransaction([op]);
 
@@ -154,26 +157,27 @@ class ContractService {
   }
 
   async pollTxnByHash(hash = this.curTxnHash): Promise<any> {
-    let rsp;
-    let retryTime = 5000;
+    let rsp: Api.GetTransactionResponse | null = null;
+    const maxAttempts = 60;
 
-    while (retryTime > 0) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       rsp = await this.rpcService.getTransactionByHash(hash);
-      if (rsp?.status !== "NOT_FOUND") {
-        break;
+      if (rsp?.status === "SUCCESS") {
+        return rsp;
       }
-      retryTime -= 1000;
+      if (rsp?.status && rsp.status !== "NOT_FOUND") {
+        throw new Error(`Transaction ${hash} failed with status ${rsp.status}`);
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    if (rsp?.status !== "SUCCESS") {
-      throw new Error("Transaction failed");
-    }
 
-    return rsp;
+    throw new Error(`Transaction ${hash} was not confirmed within ${maxAttempts} seconds`);
   }
 
-  async doTransaction(ops: xdr.Operation[], acc = this.acc): Promise<[any, string]> {
-    const txnBuilder = new TransactionBuilder(acc, {
+  async doTransaction(ops: xdr.Operation[]): Promise<[any, string]> {
+    await this.refreshAccount();
+
+    const txnBuilder = new TransactionBuilder(this.acc, {
       fee: BASE_FEE,
       networkPassphrase: this.nwPassphrase,
     });
@@ -186,23 +190,53 @@ class ContractService {
     const preparedTx = await this.rpcServer.prepareTransaction(txn);
     preparedTx.sign(this.keyPair);
 
-    let stResp;
-    let addr;
+    let stResp: any;
+    let addr = "";
     try {
       const sim = (await this.rpcServer.simulateTransaction(preparedTx)) as any;
-      const rawReturn = sim.result.retval;
-      addr = scValToNative(rawReturn);
+      const rawReturn = sim?.result?.retval;
+      if (rawReturn) {
+        addr = scValToNative(rawReturn);
+      }
       stResp = await this.rpcServer.sendTransaction(preparedTx);
     } catch (error) {
       console.error("Error in doTransaction:", error);
       throw error;
     }
 
+    if (!stResp?.hash) {
+      throw new Error("No transaction hash returned from RPC");
+    }
+
     this.curTxnHash = stResp.hash;
 
-    const resp = await this.pollTxnByHash();
+    const resp = await this.pollTxnByHash(stResp.hash);
 
     return [resp, addr];
+  }
+
+  private async refreshAccount(pubKey = this.pubKey()) {
+    this.acc = await this.account(pubKey);
+    return this.acc;
+  }
+
+  private async ensureAccountExists() {
+    try {
+      await this.refreshAccount();
+      return;
+    } catch (error) {
+      const message = String(error);
+      const isMissingAccount =
+        message.includes("404") ||
+        message.toLowerCase().includes("not found") ||
+        message.toLowerCase().includes("account");
+
+      if (!isMissingAccount) {
+        throw error;
+      }
+    }
+
+    await this.fundAccount();
   }
 
   makeOperation(opType: Op_Type, data: OperationOptionI): xdr.Operation {

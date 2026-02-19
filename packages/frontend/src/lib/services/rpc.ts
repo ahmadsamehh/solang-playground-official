@@ -24,19 +24,28 @@ export class RpcService {
 
     async fundAccount(accountId: string, url: Nullable<string> = null) {
         try {
-            console.log('funding account', accountId, url);
-            let _url: string;
-            if(url) {
-                _url = url + '?addr=';
-            } else {
-                _url = this.url.replace('/rpc', '/friendbot?addr=');
+            const friendbotUrl = this.buildFriendbotUrl(url);
+            if (!friendbotUrl) {
+                console.error("Unable to resolve friendbot URL from RPC URL:", this.url);
+                return false;
             }
-            const r = await fetch(`${_url}${accountId}`)
-            if(r.ok) {
-                const o = await r.json()
-                // console.log('result:', o) 
-                return o.successful
+
+            const endpoint = new URL(friendbotUrl);
+            endpoint.searchParams.set("addr", accountId);
+
+            const response = await fetch(endpoint.toString());
+            if (!response.ok) {
+                const body = await response.text();
+                console.error("Friendbot request failed:", response.status, body);
+                return false;
             }
+
+            const result = await response.json();
+            if (typeof result?.successful === "boolean") {
+                return result.successful;
+            }
+
+            return true;
         } catch(e) {
             console.error('error funding account', e);
         }
@@ -76,5 +85,25 @@ export class RpcService {
             return o.result
         }
         return null
+    }
+
+    private buildFriendbotUrl(explicitUrl: Nullable<string>) {
+        if (explicitUrl) {
+            return explicitUrl;
+        }
+
+        try {
+            const rpc = new URL(this.url);
+            rpc.pathname = "/friendbot";
+            rpc.search = "";
+            rpc.hash = "";
+            return rpc.toString();
+        } catch {
+            if (this.url.includes("/rpc")) {
+                return this.url.replace("/rpc", "/friendbot");
+            }
+        }
+
+        return null;
     }
 }

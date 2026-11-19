@@ -3,8 +3,9 @@ name: Build and Test Playground Docker Image (Production)
 on:
   push:
     branches:
-      - feat/invoke-input-validation
-      - feat/latest-deployment-default
+      - feat/Fix-Slow-Deployment
+      
+      
 
 jobs:
   build_and_test:

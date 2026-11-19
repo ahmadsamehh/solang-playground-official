@@ -16,7 +16,7 @@ import {
 } from "@stellar/stellar-base";
 import { IParam } from "../types/common";
 import { RpcService } from "../rpc";
-import { Api, Server } from "@stellar/stellar-sdk/rpc";
+import { Api, Server, assembleTransaction } from "@stellar/stellar-sdk/rpc";
 import { matchEnum, safeParseJson, sha256Buffer } from "../utils";
 import { ContractArgumentI, ContractInvokeI, Nullable, Op_Type, OperationOptionI } from "../types/server";
 import { mapIfValid } from "@/utils";
@@ -158,11 +158,33 @@ class ContractService {
       await this.setup();
     }
     this.wasmHash = await sha256Buffer(wasm);
-    await this.fundAccount();
+
+    // fundAccount() must always run: it loads this.acc, which the subsequent
+    // deploy transaction depends on even when the upload itself is skipped.
+    // Run it concurrently with the on-chain existence check.
+    const [alreadyUploaded] = await Promise.all([this.isWasmUploaded(this.wasmHash), this.fundAccount()]);
+    if (alreadyUploaded) {
+      console.log("WASM already uploaded on-chain, skipping upload:", this.wasmHash);
+      return this.wasmHash;
+    }
+
     const op = this.makeOperation(Op_Type.UP_CT_WASM, { wasm });
     const [_, addr] = await this.doTransaction([op]);
 
     return addr;
+  }
+
+  private async isWasmUploaded(wasmHashHex: string): Promise<boolean> {
+    try {
+      const key = xdr.LedgerKey.contractCode(
+        new xdr.LedgerKeyContractCode({ hash: Buffer.from(wasmHashHex, "hex") }),
+      );
+      const existing = await this.rpcServer.getLedgerEntries(key);
+      return Array.isArray(existing?.entries) && existing.entries.length > 0;
+    } catch (e) {
+      console.warn("Could not check for existing WASM, uploading anyway:", e);
+      return false;
+    }
   }
 
   // stellar contract deploy --wasm-hash <sha256(abc.wasm)> \
@@ -295,15 +317,29 @@ class ContractService {
     }
 
     const txn = txnBuilder.setTimeout(30).build();
-    const preparedTx = await this.rpcServer.prepareTransaction(txn);
-    preparedTx.sign(this.keyPair);
 
     let stResp;
     let addr;
     try {
-      const sim = (await this.rpcServer.simulateTransaction(preparedTx)) as any;
-      const rawReturn = sim.result.retval;
+      // Simulate once and assemble from that result (prepareTransaction would
+      // simulate internally, and a second explicit simulate was redundant).
+      const sim = await this.rpcServer.simulateTransaction(txn);
+      if (Api.isSimulationError(sim)) {
+        // Same error prepareTransaction used to throw.
+        throw new Error(sim.error);
+      }
+      const rawReturn = (sim as any).result.retval;
       addr = scValToNative(rawReturn);
+
+      const readOnlyResp = this.buildReadOnlyResponse(sim);
+      if (readOnlyResp) {
+        console.log("Read-only invocation, skipping submission");
+        return [readOnlyResp, addr];
+      }
+
+      const preparedTx = assembleTransaction(txn, sim).build();
+      preparedTx.sign(this.keyPair);
+
       stResp = await this.rpcServer.sendTransaction(preparedTx);
     } catch (error) {
       console.error("Error in doTransaction:", error);
@@ -315,6 +351,55 @@ class ContractService {
     const resp = await this.pollTxnByHash();
 
     return [resp, addr];
+  }
+
+  /**
+   * If the simulation shows a pure read (no read-write footprint entries, no
+   * auth required), build a response shaped like the raw getTransaction result
+   * that pollTxnByHash returns (status / resultXdr / diagnosticEventsXdr).
+   * Returns null whenever anything is uncertain so the caller submits normally.
+   */
+  private buildReadOnlyResponse(sim: Api.SimulateTransactionResponse): any | null {
+    try {
+      if (!Api.isSimulationSuccess(sim) || Api.isSimulationRestore(sim)) return null;
+      if (!sim.result || !Array.isArray(sim.result.auth) || !sim.result.retval) return null;
+      if (!sim.transactionData || !Array.isArray(sim.events)) return null;
+
+      const readWrite = sim.transactionData.getReadWrite();
+      if (!Array.isArray(readWrite) || readWrite.length !== 0) return null;
+      if (sim.result.auth.length !== 0) return null;
+
+      // Parsed simulations hold decoded xdr.DiagnosticEvent objects; the UI
+      // expects base64 strings (it calls xdr.DiagnosticEvent.fromXDR(e, "base64")).
+      const diagnosticEventsXdr = sim.events.map((e: any) =>
+        typeof e === "string" ? e : (e as xdr.DiagnosticEvent).toXDR("base64"),
+      );
+
+      // Sanity check: the UI reads the return value from the "fn_return"
+      // diagnostic event. If that is absent, don't take the shortcut.
+      const hasFnReturn = diagnosticEventsXdr.some((ev) => {
+        try {
+          const topics = xdr.DiagnosticEvent.fromXDR(ev, "base64").event().body().v0().topics();
+          return topics.length > 0 && scValToNative(topics[0]) === "fn_return";
+        } catch {
+          return false;
+        }
+      });
+      if (!hasFnReturn) return null;
+
+      return {
+        status: "SUCCESS",
+        // No transaction was submitted, so there is no TransactionResult;
+        // expose the simulated return ScVal (base64) instead.
+        resultXdr: sim.result.retval.toXDR("base64"),
+        diagnosticEventsXdr,
+        latestLedger: sim.latestLedger,
+        readOnly: true,
+      };
+    } catch (e) {
+      console.warn("Read-only shortcut check failed, submitting normally:", e);
+      return null;
+    }
   }
 
   makeOperation(opType: Op_Type, data: OperationOptionI): xdr.Operation {

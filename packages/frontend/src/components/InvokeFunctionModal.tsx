@@ -223,6 +223,19 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             logs = logs.filter(Boolean);
             console.log("Invoke Logs", logs);
 
+            if (status === "SUCCESS") {
+                store.send({
+                    type: "addTransaction",
+                    kind: "invoke",
+                    status: "success",
+                    hash: response.txHash ?? response.hash,
+                    contractId: selectedContractAddress,
+                    label: selectedFunction,
+                    returnValue: retVal === null ? undefined : (typeof retVal === "string" ? retVal : safeStringify(retVal)),
+                    logs,
+                });
+            }
+
             // Log transaction result like old code
             if (retVal !== null) {
                 logger.info(`TX Result: ${retVal}`);
@@ -292,6 +305,15 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
             const errorMessage = error instanceof Error ? error.message : String(error);
 
             store.send({
+                type: "addTransaction",
+                kind: "invoke",
+                status: "failed",
+                contractId: selectedContractAddress,
+                label: selectedFunction,
+                error: errorMessage,
+            });
+
+            store.send({
                 type: "addLog",
                 message: `Function '${selectedFunction}' invocation failed: ${errorMessage}`,
                 logType: MessageType.Error
@@ -320,13 +342,13 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-lg max-h-[90vh] bg-[#1A1B3A] border-[#2d2d2d] text-white flex flex-col">
+                <DialogContent className="max-w-lg max-h-[90vh] bg-ide-panel border-ide-border text-white flex flex-col">
                     <DialogHeader className="flex-shrink-0">
                         <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-                            <FaPlay className="text-[#8b5cf6]" />
+                            <FaPlay className="text-brand-soft" />
                             Invoke Function
                         </DialogTitle>
-                        <DialogDescription className="text-[#9ca3af]">
+                        <DialogDescription className="text-ide-muted">
                             Call a function on the deployed contract
                         </DialogDescription>
                     </DialogHeader>
@@ -335,20 +357,20 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
                         {/* Contract Selection */}
                         <div className="space-y-2">
-                            <Label htmlFor="contract" className="text-[#cccccc] font-medium">
+                            <Label htmlFor="contract" className="text-ide-subtle font-medium">
                                 Contract
                             </Label>
                             <Select value={selectedContractAddress} onValueChange={setSelectedContractAddress}>
-                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                <SelectTrigger className="bg-ide-bg border-ide-border text-white focus:border-brand">
                                     <SelectValue placeholder="Choose a contract..." />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#2d2d2d] border-[#404040]">
+                                <SelectContent className="bg-ide-elevated border-ide-border">
                                     {[...deployedAddresses]
                                         .sort((a, b) => contract.deployed[b].deployedAt - contract.deployed[a].deployedAt)
                                         .map((address) => {
                                         const contractInfo = contract.deployed[address];
                                         return (
-                                            <SelectItem key={address} value={address} className="text-white hover:bg-[#3a3a3a]">
+                                            <SelectItem key={address} value={address} className="text-white hover:bg-ide-hover">
                                                 {contractInfo?.fileName || 'Unknown'} ({`${address.slice(0, 8)}...${address.slice(-8)}`})
                                             </SelectItem>
                                         );
@@ -356,30 +378,30 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                 </SelectContent>
                             </Select>
                             {deployedAddresses.length === 0 && (
-                                <p className="text-[#9ca3af] text-sm">No deployed contracts available.</p>
+                                <p className="text-ide-muted text-sm">No deployed contracts available.</p>
                             )}
                         </div>
 
                         {/* Function Selection */}
                         {selectedContractAddress && (
                             <div className="space-y-2">
-                                <Label htmlFor="function" className="text-[#cccccc] font-medium">
+                                <Label htmlFor="function" className="text-ide-subtle font-medium">
                                     Function
                                 </Label>
                                 <Select value={selectedFunction} onValueChange={setSelectedFunction}>
-                                    <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                    <SelectTrigger className="bg-ide-bg border-ide-border text-white focus:border-brand">
                                         <SelectValue placeholder="Choose a function..." />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-[#2d2d2d] border-[#404040]">
+                                    <SelectContent className="bg-ide-elevated border-ide-border">
                                         {selectedContractMethods?.map((method: any, index: number) => (
-                                            <SelectItem key={index} value={method.name} className="text-white hover:bg-[#3a3a3a]">
+                                            <SelectItem key={index} value={method.name} className="text-white hover:bg-ide-hover">
                                                 {method.name}({method.inputs?.map((input: any) => input.value?.type).join(', ') || ''})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                                 {selectedContractMethods.length === 0 && (
-                                    <p className="text-[#9ca3af] text-sm">No functions available for this contract.</p>
+                                    <p className="text-ide-muted text-sm">No functions available for this contract.</p>
                                 )}
                             </div>
                         )}
@@ -387,10 +409,10 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                         {/* Function Arguments */}
                         {functionArgs.length > 0 && (
                             <div className="space-y-3">
-                                <Label className="text-[#cccccc] font-medium">Function Arguments</Label>
+                                <Label className="text-ide-subtle font-medium">Function Arguments</Label>
                                 {functionArgs.map((arg, index) => (
                                     <div key={index} className="space-y-1">
-                                        <Label className="text-[#9ca3af] text-sm">
+                                        <Label className="text-ide-muted text-sm">
                                             {arg.type} {functionArgs.length > 1 ? `(parameter ${index + 1})` : ''}
                                         </Label>
                                         <Input
@@ -402,7 +424,7 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                                             }}
                                             onBlur={() => setTouched((prev) => ({ ...prev, [index]: true }))}
                                             placeholder={`Enter ${arg.type} value...`}
-                                            className={"bg-[#0F0F23] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6]" + (errors[index] && (touched[index] || attemptedInvoke) ? " border-red-500 focus-visible:ring-red-500" : "")}
+                                            className={"bg-ide-bg border-ide-border text-white placeholder-ide-muted focus:border-brand" + (errors[index] && (touched[index] || attemptedInvoke) ? " border-red-500 focus-visible:ring-red-500" : "")}
                                         />
                                         {(touched[index] || attemptedInvoke) && errors[index] && (
                                             <p className="text-xs text-red-400">{errors[index]}</p>
@@ -414,13 +436,13 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
                         {/* Account Selection */}
                         <div className="space-y-2">
-                            <Label className="text-[#cccccc] font-medium">Account</Label>
+                            <Label className="text-ide-subtle font-medium">Account</Label>
                             <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                                <SelectTrigger className="bg-[#0F0F23] border-[#404040] text-white focus:border-[#8b5cf6]">
+                                <SelectTrigger className="bg-ide-bg border-ide-border text-white focus:border-brand">
                                     <SelectValue placeholder={truncateAddress(publicKey)} />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#2d2d2d] border-[#404040]">
-                                    <SelectItem value={publicKey} className="text-white hover:bg-[#3a3a3a]">
+                                <SelectContent className="bg-ide-elevated border-ide-border">
+                                    <SelectItem value={publicKey} className="text-white hover:bg-ide-hover">
                                         {truncateAddress(publicKey)}
                                     </SelectItem>
                                 </SelectContent>
@@ -429,10 +451,10 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
 
                         {/* Contract Info */}
                         {selectedContractAddress && selectedContractInfo && (
-                            <div className="bg-[#0F0F23] p-3 rounded-md">
-                                <div className="text-[#9ca3af] text-sm space-y-1">
+                            <div className="bg-ide-bg p-3 rounded-md">
+                                <div className="text-ide-muted text-sm space-y-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[#cccccc] font-medium">{selectedContractInfo.fileName}</span>
+                                        <span className="text-ide-subtle font-medium">{selectedContractInfo.fileName}</span>
                                     </div>
                                     <div>Contract Address: {selectedContractAddress ? `${selectedContractAddress.slice(0, 8)}...${selectedContractAddress.slice(-8)}` : 'Not deployed'}</div>
                                     <div>Network: Testnet</div>
@@ -444,18 +466,18 @@ function InvokeFunctionModal({ isOpen, onClose }: InvokeFunctionModalProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-4 border-t border-[#2d2d2d] flex-shrink-0">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-ide-border flex-shrink-0">
                         <Button
                             variant="outline"
                             onClick={onClose}
-                            className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
+                            className="border-ide-border text-ide-subtle hover:bg-ide-hover"
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleInvoke}
                             disabled={!selectedFunction || !selectedContractAddress || isInvoking || !isFormValid}
-                            className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
+                            className="bg-brand hover:bg-brand-hover text-white"
                         >
                             {isInvoking ? (
                                 <div className="flex items-center gap-2">

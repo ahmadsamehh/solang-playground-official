@@ -692,9 +692,9 @@ export default class Language implements monaco.languages.ILanguageExtensionPoin
       ],
       colors: {
         // Editor colors
-        "editor.background": "#0F0F23",
+        "editor.background": "#0D1117",
         "editor.foreground": "#D4D4D4",
-        "editor.lineHighlightBackground": "#1A1A3E",
+        "editor.lineHighlightBackground": "#161B22",
         "editor.selectionBackground": "#264F78",
         "editorCursor.foreground": "#AEAFAD",
         "editorWhitespace.foreground": "#3B3B3B",

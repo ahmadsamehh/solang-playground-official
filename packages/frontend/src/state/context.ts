@@ -2,7 +2,7 @@ import { ExpNodeType, FolderType } from "@/types/explorer";
 import { LogType } from "@/types/log";
 import { Monaco } from "@monaco-editor/react";
 import { Contract, IDL } from "@/types/idl";
-import { ICompiled, ICurrentWasm } from "@/types/contracts";
+import { ICompiled, ICurrentWasm, TxRecord } from "@/types/contracts";
 export * from "@stellar/stellar-sdk";
 export * as contract from "@stellar/stellar-sdk/contract";
 export * as rpc from "@stellar/stellar-sdk/rpc";
@@ -18,6 +18,8 @@ export const context = {
   showSpinnerDialog: false,
   currentFile: "home" as string | null,
   logs: [] as LogType[],
+  // deploy / invoke history for the Transactions tab
+  transactions: [] as TxRecord[],
   tabs: new Set<string>(),
   files: {} as Record<string, string>,
   explorer: {

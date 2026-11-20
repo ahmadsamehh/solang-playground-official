@@ -34,7 +34,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
           <SessionProvider>
-            <ThemeProvider attribute="class" enableSystem>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
               <Provider>
                 <EditorProvider>{children}</EditorProvider>
               </Provider>

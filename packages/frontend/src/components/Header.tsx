@@ -1,287 +1,331 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FaPlay, FaTimes, FaRocket, FaCode, FaMoon, FaSun, FaBug } from "react-icons/fa";
 import Image from "next/image";
-import SolangLogo from "@/assets/image/solang-logo.png";
+import { Bug, ChevronDown, FileCode2, Hammer, Home, Loader2, Play, Rocket, X } from "lucide-react";
+import { toast } from "sonner";
+import { get } from "lodash";
 import { useSelector } from "@xstate/store/react";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import SolangLogo from "@/assets/image/solang-logo.png";
 import { cn } from "@/lib/utils";
 import { store } from "@/state";
-import { useExplorerItem, useFileContent } from "@/state/hooks";
+import { useExplorerItem } from "@/state/hooks";
 import Hide from "./Hide";
-import IconButton from "./IconButton";
 import useCompile from "@/hooks/useCompile";
+import useWallet from "@/hooks/useWallet";
 import CompilerOptionsModal from "./CompilerOptionsModal";
-import useDeploy from "@/hooks/useDeploy";
-import { FileType } from "@/types/explorer";
 import DeployContractModal from "./DeployContractModal";
 import InvokeFunctionModal from "./InvokeFunctionModal";
-import { get } from "lodash";
 import ErrorModal from "./ErrorModal";
-import useWallet from "@/hooks/useWallet";
-import { truncateAddress } from "@/lib/web3";
+import WalletPill from "./WalletPill";
+import { Kbd } from "./ui/kbd";
+import { FileType } from "@/types/explorer";
+
+function TabShell({
+  path,
+  label,
+  icon,
+}: {
+  path: string;
+  label: string;
+  icon: React.ReactNode;
+}) {
+  const active = useSelector(store, (state) => state.context.currentFile === path);
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (active && itemRef.current) {
+      itemRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [active]);
+
+  return (
+    <div
+      ref={itemRef}
+      onClick={() => store.send({ type: "setCurrentPath", path })}
+      className={cn(
+        "group relative flex h-full w-max cursor-pointer select-none items-center gap-2 border-r border-ide-border pl-3 pr-1.5 text-[13px] transition-colors duration-150",
+        active ? "bg-ide-bg text-ide-text" : "text-ide-muted hover:bg-ide-hover/60 hover:text-ide-subtle",
+      )}
+    >
+      {active && <span className="absolute inset-x-0 top-0 h-[2px] bg-brand" />}
+      <span className={cn("shrink-0", active ? "text-brand-soft" : "text-ide-faint")}>{icon}</span>
+      <span className="min-w-max">{label}</span>
+      <button
+        type="button"
+        aria-label={`Close ${label}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          store.send({ type: "removeTab", path });
+        }}
+        className={cn(
+          "flex h-5 w-5 items-center justify-center rounded text-ide-muted transition-opacity hover:bg-ide-hover hover:text-ide-text",
+          active ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        )}
+      >
+        <X size={12} />
+      </button>
+    </div>
+  );
+}
 
 function TabItem({ path }: { path: string }) {
   const file = useExplorerItem(path);
-  const active = useSelector(store, (state) => state.context.currentFile === path);
-  const itemRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (active && itemRef.current) {
-      itemRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }, [active]);
-
-  return (
-    <div
-      ref={itemRef}
-      onClick={() => store.send({ type: "setCurrentPath", path })}
-      className={cn(
-        "px-4 py-2 w-max h-full flex items-center gap-2 border-r border-[#2d2d2d] duration-150 active:opacity-50 cursor-pointer",
-        active
-          ? "bg-[#0F0F23] text-white border-t-2 border-t-[#8b5cf6]"
-          : "bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]",
-      )}
-    >
-      <h3 className="min-w-max text-sm">{file?.name}</h3>
-      <IconButton
-        className={cn("opacity-0 hover:opacity-100 text-[#cccccc] hover:text-white", active && "opacity-100")}
-        onClick={() => store.send({ type: "removeTab", path })}
-      >
-        <FaTimes size={12} />
-      </IconButton>
-    </div>
-  );
+  return <TabShell path={path} label={file?.name ?? ""} icon={<FileCode2 size={13} />} />;
 }
 
 function TabHome({ path }: { path: string }) {
-
-  const active = useSelector(store, (state) => state.context.currentFile === path);
-  const itemRef = useRef<HTMLDivElement>(null);
-  console.log('item ref:', itemRef.current);
-  useEffect(() => {
-    if (active && itemRef.current) {
-      itemRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-    console.log('active:', active);
-  }, [active]);
-
-  return (
-    <div
-      ref={itemRef}
-      onClick={() => store.send({ type: "setCurrentPath", path })}
-      className={cn(
-        "px-4 py-2 w-max h-full flex items-center gap-2 border-r border-[#2d2d2d] duration-150 active:opacity-50 select-none cursor-pointer",
-        active
-          ? "bg-[#0F0F23] text-white border-t-2 border-t-[#8b5cf6]"
-          : "bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]",
-      )}
-    >
-      <h3 className="min-w-max text-sm">Home</h3>
-      <IconButton
-        className={cn("opacity-0 hover:opacity-100 text-[#cccccc] hover:text-white", active && "opacity-100")}
-        onClick={() => store.send({ type: "removeTab", path })}
-      >
-        <FaTimes size={12} />
-      </IconButton>
-    </div>
-  );
+  return <TabShell path={path} label="Home" icon={<Home size={13} />} />;
 }
 
-function Header() {
-  const { compileFile } = useCompile();
-  const { deployWasm } = useDeploy();
-  const code = useFileContent();
-  const tabs = useSelector(store, (state) => state.context.tabs);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [contract, setContract] = useState<null | Buffer>(null);
-  const selected = useSelector(store, (state) => state.context.currentFile);
-  // const showSpinnerDialog = useSelector(store, (state) => state.context.showSpinnerDialog);
-  const [name, setName] = useState<string>('');
-  const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
+type NetworkStatus = "checking" | "online" | "offline";
 
-  console.log('[header] tabs', tabs)
-  useEffect(() => {
-    if (selected && selected !== "home" && obj?.name) {
-      setName(obj.name);
-    }
-  }, [selected, obj?.name]);
-
-  const handleCompile = async () => {
-    const result = await compileFile()
-
-    // Check if compilation failed
-    if (result.err) {
-      setCompileErrorMessage(result.err);
-      setShowCompileErrorModal(true);
-      return;
-    }
-
-    // Only add to compiled list if compilation was successful
-    if (selected && selected !== 'home' && result.data) {
-      store.send({ type: "addCompiled", path: selected, name });
-    }
-
-    console.log('[-] compilation result', result)
-  }
-
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [openCompile, setOpenCompile] = useState(false);
-  const [openDeploy, setOpenDeploy] = useState(false);
-  const [openInvoke, setOpenInvoke] = useState(false);
-  const [showCompileErrorModal, setShowCompileErrorModal] = useState(false);
-  const [compileErrorMessage, setCompileErrorMessage] = useState<string>("");
-  const { publicKey } = useWallet();
-  const [networkStatus, setNetworkStatus] = useState<"checking" | "online" | "offline">("checking");
-  const [activeRpcUrl, setActiveRpcUrl] = useState("");
-
-  const checkRpcHealth = useCallback(async (): Promise<{ status: "online" | "offline"; url: string }> => {
-    try {
-      const response = await fetch("/api/network/health", { cache: "no-store" });
-      const payload = await response.json().catch(() => null);
-
-      if (response.ok && payload?.status === "online" && payload?.rpcUrl) {
-        return { status: "online", url: payload.rpcUrl };
-      }
-    } catch {
-      // Keep offline status if health endpoint fails
-    }
-
-    return { status: "offline", url: "" };
-  }, []);
+function NetworkPill() {
+  const [status, setStatus] = useState<NetworkStatus>("checking");
+  const [rpcUrl, setRpcUrl] = useState("");
 
   useEffect(() => {
     let disposed = false;
 
     const run = async () => {
+      let next: { status: NetworkStatus; url: string } = { status: "offline", url: "" };
+      try {
+        const response = await fetch("/api/network/health", { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (response.ok && payload?.status === "online" && payload?.rpcUrl) {
+          next = { status: "online", url: payload.rpcUrl };
+        }
+      } catch {
+        // keep offline status if the health endpoint fails
+      }
       if (disposed) return;
-      const nextStatus = await checkRpcHealth();
-      if (disposed) return;
-      setNetworkStatus(nextStatus.status);
-      setActiveRpcUrl(nextStatus.url);
+      setStatus(next.status);
+      setRpcUrl(next.url);
     };
 
     run();
     const interval = window.setInterval(run, 30000);
-
     return () => {
       disposed = true;
       window.clearInterval(interval);
     };
-  }, [checkRpcHealth]);
+  }, []);
 
-  const networkDotClass =
-    networkStatus === "online" ? "bg-green-500" : networkStatus === "offline" ? "bg-red-500" : "bg-yellow-500";
-
-  const networkText =
-    networkStatus === "online"
-      ? "Network: Testnet"
-      : networkStatus === "offline"
-        ? "Network: Testnet (RPC down)"
-        : "Network: Testnet (checking...)";
+  const dot = { online: "bg-emerald-500", offline: "bg-red-500", checking: "bg-amber-400" }[status];
+  const ping = { online: "bg-emerald-400", offline: "bg-red-400", checking: "bg-amber-300" }[status];
+  const title =
+    status === "online"
+      ? `Testnet RPC: ${rpcUrl}`
+      : status === "offline"
+        ? "No reachable testnet RPC endpoint"
+        : "Checking testnet RPC…";
 
   return (
-    <div className="bg-[#1A1B3A] h-[60px] w-full min-w-0 border-b border-white flex items-center justify-between px-3 md:px-8 select-none">
-      {/* Left side - Logo + Text + Action Buttons */}
-      <div className="flex min-w-0 items-center gap-2 md:gap-6">
-        {/* Solang Logo + Text */}
-        <div className="flex items-center gap-3">
-          <Image src={SolangLogo} alt="Solang Logo" width={32} height={32} />
-          <h1 className="text-white text-lg font-semibold">Solang IDE</h1>
+    <div
+      title={title}
+      className="flex h-8 items-center gap-2 rounded-full border border-ide-border bg-ide-elevated px-3 text-xs text-ide-subtle"
+    >
+      <span className="relative flex h-2 w-2">
+        {status !== "offline" && (
+          <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", ping)} />
+        )}
+        <span className={cn("relative inline-flex h-2 w-2 rounded-full", dot)} />
+      </span>
+      <span className="font-medium text-ide-text">Testnet</span>
+      {status === "offline" && <span className="text-red-400">RPC down</span>}
+      {status === "checking" && <span className="text-ide-muted">checking…</span>}
+    </div>
+  );
+}
+
+function useIsMac() {
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent));
+  }, []);
+  return isMac;
+}
+
+function Header() {
+  const { compileFile } = useCompile();
+  const { publicKey } = useWallet();
+  const isMac = useIsMac();
+  const busy = useSelector(store, (state) => state.context.showSpinnerDialog);
+  const selected = useSelector(store, (state) => state.context.currentFile);
+
+  const [openCompile, setOpenCompile] = useState(false);
+  const [openDeploy, setOpenDeploy] = useState(false);
+  const [openInvoke, setOpenInvoke] = useState(false);
+  const [compiling, setCompiling] = useState(false);
+  const [showCompileErrorModal, setShowCompileErrorModal] = useState(false);
+  const [compileErrorMessage, setCompileErrorMessage] = useState<string>("");
+
+  const recordCompile = useMutation({
+    mutationFn: async (wallet: string) => axios.post("/api/analytics/compile", { wallet }),
+  });
+
+  const canCompile = Boolean(selected && selected !== "home");
+
+  // Quick compile with default flags; use the options menu for custom flags.
+  const handleCompile = useCallback(async () => {
+    const path = store.getSnapshot().context.currentFile;
+    if (!path || path === "home") {
+      toast.info("Open a contract file to compile it");
+      return;
+    }
+    if (store.getSnapshot().context.showSpinnerDialog) return;
+
+    setCompiling(true);
+    try {
+      const result = await compileFile();
+      if (result.err) {
+        setCompileErrorMessage(result.err);
+        setShowCompileErrorModal(true);
+        return;
+      }
+      const file = get(store.getSnapshot().context, path) as FileType | undefined;
+      if (result.data) {
+        store.send({ type: "addCompiled", path, name: file?.name ?? path });
+      }
+      toast.success(`Compiled ${file?.name ?? "contract"}`);
+      if (publicKey) recordCompile.mutate(publicKey);
+    } finally {
+      setCompiling(false);
+    }
+  }, [compileFile, publicKey, recordCompile]);
+
+  const compileRef = useRef(handleCompile);
+  compileRef.current = handleCompile;
+
+  // Global shortcuts: ⌘/Ctrl+S compiles, ⌘/Ctrl+Shift+D opens deploy.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key === "s" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        compileRef.current();
+      } else if (key === "d" && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpenDeploy(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, []);
+
+  const mod = isMac ? "⌘" : "Ctrl";
+
+  return (
+    <header className="flex h-12 w-full min-w-0 shrink-0 select-none items-center justify-between gap-3 border-b border-ide-border bg-ide-panel px-3">
+      {/* Left: brand + primary actions */}
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex items-center gap-2 pr-1">
+          <Image src={SolangLogo} alt="Solang Logo" width={22} height={22} />
+          <span className="text-sm font-semibold tracking-tight text-ide-text">Solang</span>
+          <span className="hidden text-sm text-ide-muted sm:inline">Playground</span>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1 md:gap-3">
-          {/* Compile Button */}
-          <button
-            onClick={() => setOpenCompile(true)}
-            className="flex items-center gap-2 px-2 md:px-4 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-sm font-medium transition-colors"
-          >
-            <FaCode size={14} />
-            Compile
-          </button>
+        <span className="hidden h-5 w-px bg-ide-border sm:block" />
 
-          {/* Deploy Button */}
-          <button
-            onClick={() => setOpenDeploy(true)}
-            className="flex items-center gap-2 px-2 md:px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
-          >
-            <FaRocket size={14} />
-            Deploy
-          </button>
-
-          {/* Invoke Button */}
-          <button
-            onClick={() => setOpenInvoke(true)}
-            className="flex items-center gap-2 px-2 md:px-4 py-2 bg-transparent hover:bg-[#2a2b5a] text-white rounded-md text-sm font-medium transition-colors border border-[#404040]"
-          >
-            <FaPlay size={14} />
-            Invoke
-          </button>
-        </div>
-      </div>
-
-      {/* Right side - Network Info and Controls */}
-      <div className="flex min-w-0 items-center gap-2 md:gap-6">
-        {/* Network Information */}
-        <div className="hidden lg:flex items-center gap-3 text-[#9ca3af] text-sm">
-          <a
-            href="https://github.com/hyperledger-solang/solang-playground/issues/new"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2 py-1 text-[#9ca3af] hover:text-white hover:bg-[#2a2b5a] rounded transition-colors"
-          >
-            <FaBug size={12} />
-            Report Issue
-          </a>
-          <span>Target: Soroban</span>
-          <span>|</span>
-          <div className="flex items-center gap-2" title={activeRpcUrl || "No reachable testnet RPC endpoint"}>
-            <div className={cn("w-2 h-2 rounded-full", networkDotClass)} />
-            <span>{networkText}</span>
+        <div className="flex items-center gap-1.5">
+          {/* Compile (split button: quick compile + options) */}
+          <div className="flex items-center rounded-md bg-brand shadow-sm shadow-brand/20 transition-colors">
+            <button
+              type="button"
+              onClick={handleCompile}
+              disabled={!canCompile || busy}
+              title={canCompile ? `Compile current file (${mod}+S)` : "Open a contract file to compile"}
+              className="flex h-8 items-center gap-2 rounded-l-md pl-3 pr-2.5 text-[13px] font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {compiling ? <Loader2 size={14} className="animate-spin" /> : <Hammer size={14} />}
+              <span>{compiling ? "Compiling…" : "Compile"}</span>
+              <Kbd className="hidden border-white/20 bg-white/10 md:inline-flex">{mod} S</Kbd>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenCompile(true)}
+              disabled={busy}
+              title="Compiler options"
+              aria-label="Compiler options"
+              className="flex h-8 items-center rounded-r-md border-l border-white/15 px-1.5 text-white transition-colors hover:bg-brand-hover disabled:opacity-60"
+            >
+              <ChevronDown size={14} />
+            </button>
           </div>
-        </div>
 
-        {/* Account Dropdown */}
-        <div className="hidden lg:flex items-center gap-2">
-          <select className="bg-[#2d2d2d] border border-[#404040] text-white text-sm px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]">
-            <option>Account: {truncateAddress(publicKey)}</option>
-          </select>
-        </div>
+          {/* Deploy */}
+          <button
+            type="button"
+            onClick={() => setOpenDeploy(true)}
+            disabled={busy}
+            title={`Deploy a compiled contract (${mod}+Shift+D)`}
+            className="flex h-8 items-center gap-2 rounded-md border border-ide-border bg-ide-elevated px-3 text-[13px] font-medium text-ide-text transition-colors hover:border-ide-border-strong hover:bg-ide-hover disabled:opacity-60"
+          >
+            <Rocket size={14} className="text-brand-soft" />
+            <span>Deploy</span>
+            <Kbd className="hidden md:inline-flex">{mod} ⇧ D</Kbd>
+          </button>
 
-        {/* Theme Toggle */}
-        <button
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="p-2 text-[#9ca3af] hover:text-white transition-colors"
-        >
-          {isDarkMode ? <FaMoon size={16} /> : <FaSun size={16} />}
-        </button>
+          {/* Invoke */}
+          <button
+            type="button"
+            onClick={() => setOpenInvoke(true)}
+            title="Invoke a deployed contract function"
+            className="hidden h-8 items-center gap-2 rounded-md px-2.5 text-[13px] font-medium text-ide-muted transition-colors hover:bg-ide-hover hover:text-ide-text sm:flex"
+          >
+            <Play size={13} />
+            <span>Invoke</span>
+          </button>
+        </div>
       </div>
-      {/* Modals */}
+
+      {/* Right: environment */}
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="hidden rounded-full border border-ide-border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-ide-muted xl:inline">
+          Soroban
+        </span>
+        <div className="hidden md:block">
+          <NetworkPill />
+        </div>
+        <WalletPill className="hidden lg:flex" />
+        <a
+          href="https://github.com/hyperledger-solang/solang-playground/issues/new"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Report an issue"
+          aria-label="Report an issue"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-ide-muted transition-colors hover:bg-ide-hover hover:text-ide-text"
+        >
+          <Bug size={15} />
+        </a>
+      </div>
+
       <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
       <DeployContractModal isOpen={openDeploy} onClose={() => setOpenDeploy(false)} />
       <InvokeFunctionModal isOpen={openInvoke} onClose={() => setOpenInvoke(false)} />
-
-      {/* Compilation Error Modal */}
       <ErrorModal
         isOpen={showCompileErrorModal}
         onClose={() => setShowCompileErrorModal(false)}
         title="Compilation Error"
         message={compileErrorMessage}
       />
-    </div>
+    </header>
   );
 }
 
-// File Tabs Component (to be used below the header)
+// File tabs (rendered above the editor)
 export function FileTabs() {
   const tabs = useSelector(store, (state) => state.context.tabs);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="bg-[#1A1B3A] h-[48px] text-sm border-b border-[#2d2d2d] flex select-none">
-      <div className="flex flex-1 w-0">
-        <div ref={containerRef} className="overflow-x-auto flex scroll-smooth">
+    <div className="flex h-9 shrink-0 select-none border-b border-ide-border bg-ide-panel text-sm">
+      <div className="flex w-0 flex-1">
+        <div className="flex overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[...tabs].map((tab) => (
             <Hide key={tab} open={tab !== "home"} fallback={<TabHome path={tab} />}>
               <TabItem key={tab} path={tab} />

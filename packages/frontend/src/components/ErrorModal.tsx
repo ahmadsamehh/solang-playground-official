@@ -14,7 +14,7 @@ interface ErrorModalProps {
 function ErrorModal({ isOpen, onClose, title, message }: ErrorModalProps) {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-xl bg-[#1A1B3A] border-red-500/50 text-white rounded-2xl">
+            <DialogContent className="max-w-xl bg-ide-panel border-red-500/50 text-white rounded-2xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-3 text-xl font-semibold text-red-400">
                         <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -22,7 +22,7 @@ function ErrorModal({ isOpen, onClose, title, message }: ErrorModalProps) {
                         </svg>
                         {title}
                     </DialogTitle>
-                    <DialogDescription className="text-[#cccccc] text-sm">
+                    <DialogDescription className="text-ide-subtle text-sm">
                         Review the details below. Long messages will scroll.
                     </DialogDescription>
                 </DialogHeader>
@@ -36,10 +36,10 @@ function ErrorModal({ isOpen, onClose, title, message }: ErrorModalProps) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-[#2d2d2d]">
+                <div className="flex justify-end gap-3 pt-4 border-t border-ide-border">
                     <Button
                         onClick={onClose}
-                        className="bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-lg"
+                        className="bg-brand hover:bg-brand-hover text-white rounded-lg"
                     >
                         Close
                     </Button>

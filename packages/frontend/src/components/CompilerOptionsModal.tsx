@@ -192,10 +192,10 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
     return (
         <>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-[640px] bg-[#171833] border border-[#27284a] text-white rounded-full shadow-xl px-5 py-4">
+                <DialogContent className="max-w-[640px] bg-ide-panel border border-ide-border text-white rounded-xl shadow-xl px-5 py-4">
                     <DialogHeader className="pb-2">
                         <DialogTitle className="flex items-center gap-2 text-[18px] font-semibold tracking-tight">
-                            <FaCog className="text-[#8b5cf6]" />
+                            <FaCog className="text-brand-soft" />
                             Compiler Options
                         </DialogTitle>
                         {/* Intentionally minimal — removed extra descriptive text */}
@@ -204,14 +204,14 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                     <div className="space-y-4">
                         {/* Quick Flags */}
                         <div className="space-y-2.5">
-                            <h3 className="text-[#cfd1e6] font-medium text-sm">Quick Flags</h3>
+                            <h3 className="text-ide-subtle font-medium text-sm">Quick Flags</h3>
 
                             <div className="grid grid-cols-4 gap-2">
                                 <button
                                     onClick={() => handleQuickFlagChange('optimize')}
                                     className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.optimize
-                                        ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                        : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
+                                        ? 'bg-brand border-brand text-white'
+                                        : 'bg-ide-elevated border-ide-border text-ide-subtle hover:bg-ide-hover'
                                         }`}
                                 >
                                     -O default
@@ -220,8 +220,8 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                 <button
                                     onClick={() => handleQuickFlagChange('emitIr')}
                                     className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.emitIr
-                                        ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                        : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
+                                        ? 'bg-brand border-brand text-white'
+                                        : 'bg-ide-elevated border-ide-border text-ide-subtle hover:bg-ide-hover'
                                         }`}
                                 >
                                     --emit llvm-ir
@@ -230,8 +230,8 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                 <button
                                     onClick={() => handleQuickFlagChange('release')}
                                     className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.release
-                                        ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                        : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
+                                        ? 'bg-brand border-brand text-white'
+                                        : 'bg-ide-elevated border-ide-border text-ide-subtle hover:bg-ide-hover'
                                         }`}
                                 >
                                     --release
@@ -240,8 +240,8 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                 <button
                                     onClick={() => handleQuickFlagChange('noStrengthReduce')}
                                     className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.noStrengthReduce
-                                        ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                        : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
+                                        ? 'bg-brand border-brand text-white'
+                                        : 'bg-ide-elevated border-ide-border text-ide-subtle hover:bg-ide-hover'
                                         }`}
                                 >
                                     --no-strength-reduce
@@ -250,8 +250,8 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                 <button
                                     onClick={() => handleQuickFlagChange('noDeadStorage')}
                                     className={`px-2.5 py-1.5 rounded-full text-xs border transition-colors ${quickFlags.noDeadStorage
-                                        ? 'bg-[#8b5cf6] border-[#8b5cf6] text-white'
-                                        : 'bg-[#22234a] border-[#34355f] text-[#cfd1e6] hover:bg-[#2a2c56]'
+                                        ? 'bg-brand border-brand text-white'
+                                        : 'bg-ide-elevated border-ide-border text-ide-subtle hover:bg-ide-hover'
                                         }`}
                                 >
                                     --no-dead-storage
@@ -261,7 +261,7 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
 
                         {/* Custom Flags */}
                         <div className="space-y-2">
-                            <Label htmlFor="customFlags" className="text-[#cfd1e6] font-medium text-sm">
+                            <Label htmlFor="customFlags" className="text-ide-subtle font-medium text-sm">
                                 Custom Flags
                             </Label>
                             <textarea
@@ -269,58 +269,58 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                                 value={customFlags}
                                 onChange={(e) => setCustomFlags(e.target.value)}
                                 placeholder="Add custom compiler flags here..."
-                                className="w-full h-20 bg-[#1e1f3f] border border-[#34355f] text-white placeholder-[#8c8fb0] focus:border-[#8b5cf6] rounded-xl px-3 py-2 text-sm resize-none"
+                                className="w-full h-20 bg-ide-elevated border border-ide-border text-white placeholder-ide-muted focus:border-brand rounded-xl px-3 py-2 text-sm resize-none"
                             />
                             {/* Removed example helper to reduce height */}
                         </div>
 
                         {/* Compiler Info */}
-                        <div className="bg-gradient-to-br from-[#232552] via-[#1f2148] to-[#181a3a] p-4 rounded-2xl border border-[#3a3d72] shadow-[0_10px_28px_rgba(10,11,28,0.34)]">
-                            <h4 className="text-[#f2f3ff] font-semibold mb-3 text-sm tracking-wide">
+                        <div className="bg-gradient-to-br from-ide-elevated via-ide-panel to-ide-panel p-4 rounded-2xl border border-ide-border-strong shadow-[0_10px_28px_rgba(10,11,28,0.34)]">
+                            <h4 className="text-ide-text font-semibold mb-3 text-sm tracking-wide">
                                 Compiler Information
                             </h4>
 
                             {isCompilerInfoLoading ? (
                                 <div className="space-y-2">
-                                    <div className="h-4 w-40 rounded bg-[#303362] animate-pulse" />
-                                    <div className="h-4 w-56 rounded bg-[#2b2e5a] animate-pulse" />
-                                    <div className="h-4 w-64 rounded bg-[#2b2e5a] animate-pulse" />
+                                    <div className="h-4 w-40 rounded bg-ide-hover animate-pulse" />
+                                    <div className="h-4 w-56 rounded bg-ide-hover animate-pulse" />
+                                    <div className="h-4 w-64 rounded bg-ide-hover animate-pulse" />
                                 </div>
                             ) : (
                                 <div className="grid gap-2.5 sm:grid-cols-2">
-                                    <div className="sm:col-span-2 rounded-xl border border-[#3b3f76] bg-[#14162f]/70 px-3 py-2.5">
-                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">{activeCompilerInfo.compiler_name} Version</p>
+                                    <div className="sm:col-span-2 rounded-xl border border-ide-border-strong bg-ide-bg/70 px-3 py-2.5">
+                                        <p className="text-[11px] uppercase tracking-wide text-ide-muted">{activeCompilerInfo.compiler_name} Version</p>
                                         <p className="text-[#ffffff] text-base font-semibold">{activeCompilerInfo.compiler_version}</p>
                                     </div>
 
-                                    <div className="rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
-                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Image Digest</p>
+                                    <div className="rounded-xl border border-ide-border bg-ide-bg/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-ide-muted">Image Digest</p>
                                         <code
                                             title={activeCompilerInfo.image_digest}
-                                            className="block text-[#e9e8ff] text-xs font-mono mt-1 break-all"
+                                            className="block text-ide-text text-xs font-mono mt-1 break-all"
                                         >
                                             {shortenDigest(activeCompilerInfo.image_digest)}
                                         </code>
                                     </div>
 
-                                    <div className="rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
-                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Target</p>
-                                        <p className="text-[#e9e8ff] text-xs mt-1">{activeCompilerInfo.target}</p>
+                                    <div className="rounded-xl border border-ide-border bg-ide-bg/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-ide-muted">Target</p>
+                                        <p className="text-ide-text text-xs mt-1">{activeCompilerInfo.target}</p>
                                     </div>
 
-                                    <div className="sm:col-span-2 rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
-                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Container Image</p>
+                                    <div className="sm:col-span-2 rounded-xl border border-ide-border bg-ide-bg/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-ide-muted">Container Image</p>
                                         <code
                                             title={activeCompilerInfo.image}
-                                            className="block text-[#d8d9ef] text-xs font-mono mt-1 break-all"
+                                            className="block text-ide-subtle text-xs font-mono mt-1 break-all"
                                         >
                                             {activeCompilerInfo.image}
                                         </code>
                                     </div>
 
-                                    <div className="sm:col-span-2 rounded-xl border border-[#343868] bg-[#151736]/60 px-3 py-2">
-                                        <p className="text-[11px] uppercase tracking-wide text-[#a8abcf]">Output</p>
-                                        <p className="text-[#e9e8ff] text-xs mt-1">{activeCompilerInfo.output}</p>
+                                    <div className="sm:col-span-2 rounded-xl border border-ide-border bg-ide-bg/60 px-3 py-2">
+                                        <p className="text-[11px] uppercase tracking-wide text-ide-muted">Output</p>
+                                        <p className="text-ide-text text-xs mt-1">{activeCompilerInfo.output}</p>
                                     </div>
                                 </div>
                             )}
@@ -332,18 +332,18 @@ function CompilerOptionsModal({ isOpen, onClose }: CompilerOptionsModalProps) {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-3 border-t border-[#27284a]">
+                    <div className="flex justify-end gap-3 pt-3 border-t border-ide-border">
                         <Button
                             variant="outline"
                             onClick={onClose}
-                            className="border-[#34355f] text-[#cfd1e6] hover:bg-[#22234a]"
+                            className="border-ide-border text-ide-subtle hover:bg-ide-elevated"
                         >
                             Cancel
                         </Button>
                         <Button
                             onClick={handleCompile}
                             disabled={isCompiling}
-                            className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-xl px-4"
+                            className="bg-brand-hover hover:bg-brand-hover text-white rounded-xl px-4"
                         >
                             {isCompiling ? (
                                 <div className="flex items-center gap-2">

@@ -72,25 +72,26 @@
   }
   .vs-dark,
   .dark {
-    --background: 234 20% 21%;
-    --foreground: 238 17% 69%;
-    --card: 237 23% 17%;
-    --card-foreground: 238 17% 69%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 237 18% 30%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /* Layered slate palette: #0D1117 base, #161B22 panels, indigo accent */
+    --background: 216 28% 7%;
+    --foreground: 208 35% 93%;
+    --card: 215 21% 11%;
+    --card-foreground: 208 35% 93%;
+    --popover: 215 21% 11%;
+    --popover-foreground: 208 35% 93%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 15% 15%;
+    --secondary-foreground: 208 35% 93%;
+    --muted: 215 15% 15%;
+    --muted-foreground: 212 9% 58%;
+    --accent: 215 15% 15%;
+    --accent-foreground: 208 35% 93%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 226 15% 29%;
-    --input: 226 15% 29%;
-    --ring: 226 15% 29%;
+    --border: 214 14% 19%;
+    --input: 214 14% 19%;
+    --ring: 239 84% 67%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -105,6 +106,35 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Slim, unobtrusive scrollbars for the IDE chrome */
+.dark,
+.vs-dark {
+  color-scheme: dark;
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.1);
+    border-radius: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgb(255 255 255 / 0.2);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 

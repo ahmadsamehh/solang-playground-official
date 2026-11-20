@@ -74,13 +74,13 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-lg bg-[#1A1B3A] border-[#2d2d2d] text-white">
+            <DialogContent className="max-w-lg bg-ide-panel border-ide-border text-white">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-                        <FaUserCircle className="text-[#8b5cf6]" />
+                        <FaUserCircle className="text-brand-soft" />
                         Select Account
                     </DialogTitle>
-                    <DialogDescription className="text-[#9ca3af]">
+                    <DialogDescription className="text-ide-muted">
                         Choose an account to use for transactions
                     </DialogDescription>
                 </DialogHeader>
@@ -92,19 +92,19 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
                             <div
                                 key={account.id}
                                 onClick={() => handleAccountSelect(account)}
-                                className="bg-[#2d2d2d] p-4 rounded-md cursor-pointer hover:bg-[#3a3a3a] transition-colors border border-[#404040] hover:border-[#8b5cf6]"
+                                className="bg-ide-elevated p-4 rounded-md cursor-pointer hover:bg-ide-hover transition-colors border border-ide-border hover:border-brand"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
-                                        <h3 className="text-[#cccccc] font-medium">{account.name}</h3>
+                                        <h3 className="text-ide-subtle font-medium">{account.name}</h3>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[#9ca3af] text-sm font-mono">{formatAddress(account.address)}</span>
+                                            <span className="text-ide-muted text-sm font-mono">{formatAddress(account.address)}</span>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleCopyAddress(account.address);
                                                 }}
-                                                className="text-[#9ca3af] hover:text-white transition-colors"
+                                                className="text-ide-muted hover:text-white transition-colors"
                                             >
                                                 {copiedAddress === account.address ? (
                                                     <FaCheck size={12} className="text-green-500" />
@@ -113,7 +113,7 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
                                                 )}
                                             </button>
                                         </div>
-                                        <p className="text-[#9ca3af] text-xs mt-1">{account.balance}</p>
+                                        <p className="text-ide-muted text-xs mt-1">{account.balance}</p>
                                     </div>
                                 </div>
                             </div>
@@ -121,12 +121,12 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
                     </div>
 
                     {/* Import New Account */}
-                    <div className="border-t border-[#2d2d2d] pt-4">
-                        <h3 className="text-[#cccccc] font-medium mb-3">Import Account</h3>
+                    <div className="border-t border-ide-border pt-4">
+                        <h3 className="text-ide-subtle font-medium mb-3">Import Account</h3>
 
                         <div className="space-y-3">
                             <div>
-                                <Label htmlFor="accountName" className="text-[#cccccc] text-sm">
+                                <Label htmlFor="accountName" className="text-ide-subtle text-sm">
                                     Account Name
                                 </Label>
                                 <Input
@@ -134,12 +134,12 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
                                     value={newAccountName}
                                     onChange={(e) => setNewAccountName(e.target.value)}
                                     placeholder="Enter account name..."
-                                    className="bg-[#2d2d2d] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6] mt-1"
+                                    className="bg-ide-elevated border-ide-border text-white placeholder-ide-muted focus:border-brand mt-1"
                                 />
                             </div>
 
                             <div>
-                                <Label htmlFor="accountKey" className="text-[#cccccc] text-sm">
+                                <Label htmlFor="accountKey" className="text-ide-subtle text-sm">
                                     Private Key
                                 </Label>
                                 <Input
@@ -148,14 +148,14 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
                                     value={newAccountKey}
                                     onChange={(e) => setNewAccountKey(e.target.value)}
                                     placeholder="Enter private key..."
-                                    className="bg-[#2d2d2d] border-[#404040] text-white placeholder-[#9ca3af] focus:border-[#8b5cf6] mt-1"
+                                    className="bg-ide-elevated border-ide-border text-white placeholder-ide-muted focus:border-brand mt-1"
                                 />
                             </div>
 
                             <Button
                                 onClick={handleImportAccount}
                                 disabled={!newAccountName || !newAccountKey || isImporting}
-                                className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
+                                className="w-full bg-brand hover:bg-brand-hover text-white"
                             >
                                 {isImporting ? (
                                     <div className="flex items-center gap-2">
@@ -174,11 +174,11 @@ function AccountSelectionModal({ isOpen, onClose, onAccountSelect }: AccountSele
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-end pt-4 border-t border-[#2d2d2d]">
+                <div className="flex justify-end pt-4 border-t border-ide-border">
                     <Button
                         variant="outline"
                         onClick={onClose}
-                        className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
+                        className="border-ide-border text-ide-subtle hover:bg-ide-hover"
                     >
                         Cancel
                     </Button>

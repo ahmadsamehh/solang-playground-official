@@ -10,6 +10,33 @@ export default {
   theme: {
   	extend: {
   		colors: {
+  			// IDE surface layers (dark, GitHub-style slate)
+  			ide: {
+  				bg: '#0D1117',
+  				panel: '#161B22',
+  				elevated: '#1C2128',
+  				hover: '#21262D',
+  				border: 'rgb(255 255 255 / 0.08)',
+  				'border-strong': 'rgb(255 255 255 / 0.14)',
+  				text: '#E6EDF3',
+  				subtle: '#C9D1D9',
+  				muted: '#8B949E',
+  				faint: '#6E7681'
+  			},
+  			// Electric indigo primary accent
+  			brand: {
+  				DEFAULT: '#6366F1',
+  				hover: '#4F46E5',
+  				soft: '#818CF8',
+  				muted: 'rgb(99 102 241 / 0.15)'
+  			},
+  			// Read-only / simulate calls
+  			read: {
+  				DEFAULT: '#06B6D4',
+  				hover: '#0891B2',
+  				soft: '#22D3EE',
+  				muted: 'rgb(6 182 212 / 0.12)'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -72,11 +99,21 @@ export default {
   				to: {
   					height: '0'
   				}
+  			},
+  			'fade-in-up': {
+  				from: { opacity: '0', transform: 'translateY(4px)' },
+  				to: { opacity: '1', transform: 'translateY(0)' }
+  			},
+  			'progress-indeterminate': {
+  				'0%': { transform: 'translateX(-100%)' },
+  				'100%': { transform: 'translateX(400%)' }
   			}
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'fade-in-up': 'fade-in-up 0.2s ease-out',
+  			'progress-indeterminate': 'progress-indeterminate 1.2s ease-in-out infinite'
   		}
   	}
   },

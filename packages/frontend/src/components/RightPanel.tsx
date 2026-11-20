@@ -1,257 +1,218 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "./ui/button";
-import useCompile from "@/hooks/useCompile";
-import useDeploy from "@/hooks/useDeploy";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "@xstate/store/react";
+import { Boxes, ChevronLeft, ChevronRight, FileCode2, Hammer, Rocket, Settings2 } from "lucide-react";
 import { store } from "@/state";
-import { FileType } from "@/types/explorer";
-import { get } from "lodash";
+import { cn } from "@/lib/utils";
+import { getLatestCompiled, getLatestDeployedAddress } from "@/state/utils";
+import { timeAgo } from "@/lib/explorer";
+import useNow from "@/hooks/useNow";
 import CompilerOptionsModal from "./CompilerOptionsModal";
-import DeployContractModal from "./DeployContractModal";
-import InvokeFunction from "./InvokeFunction";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getLatestDeployedAddress } from "@/state/utils";
+import DeployExplorer from "./DeployExplorer";
+import ResizeHandle, { usePanelSize } from "./ResizeHandle";
+
+type RightTab = "Build" | "Deploy";
+
+const COLLAPSED_WIDTH = 44;
+
+const TABS: { id: RightTab; label: string; icon: typeof Hammer }[] = [
+  { id: "Build", label: "Build", icon: Hammer },
+  { id: "Deploy", label: "Deploy & Run", icon: Rocket },
+];
+
+function BuildTab({ onOpenCompile }: { onOpenCompile: () => void }) {
+  const now = useNow();
+  const selected = useSelector(store, (state) => state.context.currentFile);
+  const compiled = useSelector(store, (state) => state.context.compiled);
+  const latest = getLatestCompiled(compiled);
+  const isCurrentFileCompiled = compiled.some((item) => item.path === selected);
+  const hasFile = Boolean(selected && selected !== "home");
+
+  return (
+    <div className="space-y-5">
+      <section className="space-y-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-ide-muted">Compiler</h3>
+        <button
+          type="button"
+          onClick={onOpenCompile}
+          disabled={!hasFile}
+          className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-brand text-[13px] font-medium text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Settings2 size={14} />
+          {isCurrentFileCompiled ? "Recompile with options" : "Compile with options"}
+        </button>
+        {!hasFile && <p className="text-center text-xs text-ide-muted">Select a contract file to compile</p>}
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-ide-muted">
+          Artifacts
+          {compiled.length > 0 && <span className="font-normal normal-case tracking-normal">{compiled.length}</span>}
+        </h3>
+        {compiled.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-ide-border px-4 py-6 text-center">
+            <Boxes size={18} className="mx-auto mb-2 text-ide-faint" />
+            <p className="text-xs text-ide-muted">No artifacts yet</p>
+            <p className="mt-1 text-[11px] text-ide-faint">Compile a contract to produce WASM</p>
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {[...compiled]
+              .sort((a, b) => b.compiledAt - a.compiledAt)
+              .map((item) => (
+                <li
+                  key={item.path}
+                  onClick={() => store.send({ type: "setCurrentPath", path: item.path })}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2.5 rounded-lg border bg-ide-elevated px-3 py-2 transition-colors hover:border-ide-border-strong",
+                    item.path === selected ? "border-brand/50" : "border-ide-border",
+                  )}
+                >
+                  <FileCode2 size={14} className="shrink-0 text-brand-soft" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium text-ide-text">{item.name}</div>
+                    <div className="text-[11px] text-ide-muted">WASM · compiled {timeAgo(item.compiledAt, now)}</div>
+                  </div>
+                  {latest?.path === item.path && (
+                    <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                      Latest
+                    </span>
+                  )}
+                </li>
+              ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
 
 function RightPanel() {
-    const [collapsed, setCollapsed] = useState(false);
-    const [activeTab, setActiveTab] = useState<'Build' | 'Artifacts' | 'Invoke'>('Build');
-    const [openCompile, setOpenCompile] = useState(false);
-    const [openDeploy, setOpenDeploy] = useState(false);
-    const { compileFile } = useCompile();
-    const { deployWasm } = useDeploy();
+  const [collapsed, setCollapsed] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [activeTab, setActiveTab] = useState<RightTab>("Build");
+  const [openCompile, setOpenCompile] = useState(false);
+  const { size, setSize, persist, reset } = usePanelSize("right", 340, 280, 640);
 
-    const selected = useSelector(store, (state) => state.context.currentFile);
-    const compiled = useSelector(store, (state) => state.context.compiled);
-    const contract = useSelector(store, (state) => state.context.contract);
+  const deployed = useSelector(store, (state) => state.context.contract.deployed);
+  const latestDeployedAddress = getLatestDeployedAddress(deployed);
+  const previousLatest = useRef(latestDeployedAddress);
 
-    const obj = useSelector(store, (state) => get(state.context, selected || '')) as FileType;
-    const [name, setName] = useState<string>('');
+  // Jump to Deploy & Run whenever a new deployment lands.
+  useEffect(() => {
+    if (latestDeployedAddress && latestDeployedAddress !== previousLatest.current) {
+      setActiveTab("Deploy");
+      setCollapsed(false);
+    }
+    previousLatest.current = latestDeployedAddress;
+  }, [latestDeployedAddress]);
 
-    // Check if current file is compiled
-    const isCurrentFileCompiled = compiled.some(item => item.path === selected);
-
-    // State for selected contract in Invoke tab
-    const [selectedContractAddress, setSelectedContractAddress] = useState<string>('');
-
-    // Get deployed contract addresses
-    const deployedAddresses = Object.keys(contract.deployed || {});
-    const latestDeployedAddress = getLatestDeployedAddress(contract.deployed);
-    const latestDeployedAt = latestDeployedAddress
-        ? contract.deployed[latestDeployedAddress]?.deployedAt
-        : undefined;
-
-    useEffect(() => {
-        if (activeTab === "Invoke" && latestDeployedAddress) {
-            setSelectedContractAddress(latestDeployedAddress);
-        }
-    }, [activeTab, latestDeployedAddress, latestDeployedAt]);
-
-    useEffect(() => {
-        const collapseForViewport = () => {
-            if (window.innerWidth < 1024) {
-                setCollapsed(true);
-            }
-        };
-
-        collapseForViewport();
-        window.addEventListener("resize", collapseForViewport);
-        return () => window.removeEventListener("resize", collapseForViewport);
-    }, []);
-
-    const handleDeploy = () => {
-        setOpenDeploy(true);
+  useEffect(() => {
+    const collapseForViewport = () => {
+      if (window.innerWidth < 1024) {
+        setCollapsed(true);
+      }
     };
 
-    return (
-        <div
-            className={`${collapsed ? "w-[40px]" : "w-[300px]"} shrink-0 relative border-l border-[#2d2d2d] bg-[#1A1B3A] h-full`}
-        >
+    collapseForViewport();
+    window.addEventListener("resize", collapseForViewport);
+    return () => window.removeEventListener("resize", collapseForViewport);
+  }, []);
+
+  const openTab = (tab: RightTab) => {
+    setActiveTab(tab);
+    setCollapsed(false);
+  };
+
+  return (
+    <aside
+      style={{ width: collapsed ? COLLAPSED_WIDTH : size }}
+      className={cn(
+        "relative flex h-full shrink-0 flex-col border-l border-ide-border bg-ide-panel text-ide-subtle",
+        !dragging && "transition-[width] duration-200 ease-out",
+      )}
+    >
+      {collapsed ? (
+        <div className="flex flex-col items-center gap-1 pt-2">
+          {TABS.map(({ id, label, icon: Icon }) => (
             <button
-                type="button"
-                onClick={() => setCollapsed((previousCollapsed) => !previousCollapsed)}
-                aria-label={collapsed ? "Expand right panel" : "Collapse right panel"}
-                title={collapsed ? "Expand right panel" : "Collapse right panel"}
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 p-1 rounded text-[#cccccc] bg-[#2d2d2d] hover:bg-[#3d3d3d]"
+              key={id}
+              type="button"
+              title={label}
+              aria-label={label}
+              onClick={() => openTab(id)}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                activeTab === id ? "bg-brand-muted text-brand-soft" : "text-ide-muted hover:bg-ide-hover hover:text-ide-text",
+              )}
             >
-                {collapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+              <Icon size={16} />
             </button>
-
-            {/* Tabs */}
-            <div className={`flex border-b border-[#2d2d2d] ${collapsed ? "hidden" : ""}`}>
-                <button
-                    onClick={() => setActiveTab('Build')}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === 'Build'
-                        ? 'bg-[#0F0F23] text-white border-b-2 border-b-[#8b5cf6]'
-                        : 'bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]'
-                        }`}
-                >
-                    Build
-                </button>
-                <button
-                    onClick={() => setActiveTab('Artifacts')}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === 'Artifacts'
-                        ? 'bg-[#0F0F23] text-white border-b-2 border-b-[#8b5cf6]'
-                        : 'bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]'
-                        }`}
-                >
-                    Artifacts
-                </button>
-                <button
-                    onClick={() => setActiveTab('Invoke')}
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${activeTab === 'Invoke'
-                        ? 'bg-[#0F0F23] text-white border-b-2 border-b-[#8b5cf6]'
-                        : 'bg-[#1A1B3A] text-[#cccccc] hover:bg-[#2a2b5a]'
-                        }`}
-                >
-                    Invoke
-                </button>
-            </div>
-
-            {/* Content */}
-            <div className={`flex-1 p-3 ${collapsed ? "hidden" : ""}`}>
-                {activeTab === 'Build' && (
-                    <div className="space-y-4">
-                        <div className="text-[#cccccc] text-sm">
-                            <div>
-                                {/* Compile Button - Always visible */}
-                                <div className="mb-4">
-                                    <Button
-                                        onClick={() => setOpenCompile(true)}
-                                        className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
-                                        size="sm"
-                                        disabled={!selected || selected === 'home'}
-                                    >
-                                        {isCurrentFileCompiled ? 'Recompile' : 'Compile'} Contract
-                                    </Button>
-                                    {(!selected || selected === 'home') && (
-                                        <p className="text-[#9ca3af] text-xs mt-2 text-center">Select a contract file to compile</p>
-                                    )}
-                                </div>
-
-                                {/* Build Results */}
-                                {compiled.length > 0 ? (
-                                    <div>
-                                        <h3 className="text-[#cccccc] text-sm font-medium mb-2">Build Results</h3>
-                                        <div className="space-y-2">
-                                            {compiled.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    className={`bg-[#2d2d2d] p-2 rounded text-xs ${item.path === selected ? 'border border-[#8b5cf6]' : ''
-                                                        }`}
-                                                >
-                                                    <div className="text-[#9ca3af]">
-                                                        {item.name} - Compiled successfully
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-4">
-                                        <p className="text-[#9ca3af] text-sm">No artifacts yet</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'Artifacts' && (
-                    <div className="space-y-4">
-                        <div className="text-[#cccccc] text-sm">
-                            {compiled.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-[#9ca3af] text-sm">No artifacts generated yet.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {compiled.map((item, index) => (
-                                        <div key={index} className="bg-[#2d2d2d] p-3 rounded">
-                                            <div className="text-[#cccccc] text-xs font-medium">{item.name}</div>
-                                            <div className="text-[#9ca3af] text-xs mt-1">WASM Contract</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'Invoke' && (
-                    <div className="space-y-4">
-                        <div className="text-[#cccccc] text-sm">
-                            <h3 className="text-[#cccccc] text-sm font-medium mb-2">Contract Functions</h3>
-                            {deployedAddresses.length > 0 ? (
-                                <div className="space-y-4">
-                                    {/* Contract Selection Dropdown */}
-                                    <div>
-                                        <label className="text-[#9ca3af] text-xs mb-1 block">Select Contract</label>
-                                        <select
-                                            value={selectedContractAddress}
-                                            onChange={(e) => setSelectedContractAddress(e.target.value)}
-                                            className="w-full px-3 py-2 rounded bg-[#2d2d2d] text-[#cccccc] border border-[#3d3d3d] text-xs focus:outline-none focus:border-[#8b5cf6]"
-                                        >
-                                            {[...deployedAddresses]
-                                                .sort((a, b) => contract.deployed[b].deployedAt - contract.deployed[a].deployedAt)
-                                                .map((address) => {
-                                                const contractInfo = contract.deployed[address];
-                                                return (
-                                                    <option key={address} value={address}>
-                                                        {contractInfo?.fileName || 'Unknown'} ({`${address.slice(0, 8)}...${address.slice(-8)}`})
-                                                    </option>
-                                                );
-                                            })}
-                                        </select>
-                                    </div>
-
-                                    {/* Selected Contract Address Display */}
-                                    {selectedContractAddress && contract.deployed[selectedContractAddress] && (
-                                        <div className="bg-[#2d2d2d] p-3 rounded">
-                                            <div className="text-[#cccccc] text-xs font-medium">{contract.deployed[selectedContractAddress].fileName}</div>
-                                            <div className="text-[#9ca3af] text-xs mt-1 font-mono break-all">{selectedContractAddress}</div>
-                                        </div>
-                                    )}
-
-                                    {/* Functions of Selected Contract */}
-                                    {selectedContractAddress && contract.deployed[selectedContractAddress] && (
-                                        <div className="space-y-2">
-                                            <h4 className="text-[#cccccc] text-xs font-medium">Functions</h4>
-                                            {contract.deployed[selectedContractAddress].methods.map((method, index) => (
-                                                <InvokeFunction
-                                                    key={`${selectedContractAddress}-${method.name}-${index}`}
-                                                    contractAddress={selectedContractAddress}
-                                                    method={method}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-[#9ca3af] text-sm">No contract deployed yet.</p>
-                                    <Button
-                                        onClick={handleDeploy}
-                                        className="mt-4 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white"
-                                        size="sm"
-                                    >
-                                        Deploy Contract
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Compiler Options Modal */}
-            <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
-
-            {/* Deploy Contract Modal */}
-            <DeployContractModal isOpen={openDeploy} onClose={() => setOpenDeploy(false)} />
+          ))}
         </div>
-    );
+      ) : (
+        <>
+          <div className="flex h-9 shrink-0 items-center gap-1 border-b border-ide-border px-2">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={cn(
+                  "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
+                  activeTab === id ? "bg-ide-hover text-ide-text" : "text-ide-muted hover:bg-ide-hover/60 hover:text-ide-subtle",
+                )}
+              >
+                <Icon size={13} />
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              aria-label="Collapse right panel"
+              title="Collapse right panel"
+              className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-ide-muted transition-colors hover:bg-ide-hover hover:text-ide-text"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+
+          <div key={activeTab} className="min-h-0 flex-1 overflow-y-auto p-3 animate-fade-in-up">
+            {activeTab === "Build" ? <BuildTab onOpenCompile={() => setOpenCompile(true)} /> : <DeployExplorer />}
+          </div>
+        </>
+      )}
+
+      {collapsed && (
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          aria-label="Expand right panel"
+          title="Expand right panel"
+          className="absolute bottom-2 left-1/2 z-20 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-md text-ide-muted transition-colors hover:bg-ide-hover hover:text-ide-text"
+        >
+          <ChevronLeft size={15} />
+        </button>
+      )}
+
+      {!collapsed && (
+        <ResizeHandle
+          axis="x"
+          invert
+          className="left-0"
+          size={size}
+          onResize={setSize}
+          onResizeEnd={persist}
+          onReset={reset}
+          onDraggingChange={setDragging}
+        />
+      )}
+
+      <CompilerOptionsModal isOpen={openCompile} onClose={() => setOpenCompile(false)} />
+    </aside>
+  );
 }
 
 export default RightPanel;

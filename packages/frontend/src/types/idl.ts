@@ -12,6 +12,8 @@ export interface DeployedContractInfo {
   methods: IDL;
   fileName: string;
   deployedAt: number;
+  /** Methods detected as view/pure in the source at deploy time (UI hint only). */
+  readOnlyMethods?: string[];
 }
 
 export interface ContractsDeployed {

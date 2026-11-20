@@ -2,18 +2,22 @@
 
 import { store } from "@/state";
 import { useSelector } from "@xstate/store/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { toast } from "sonner";
+import { ChevronRight, ExternalLink, FileCode2, Layers, Loader2, Rocket, Trash2 } from "lucide-react";
 import InvokeFunction from "./InvokeFunction";
 import useDeploy from "@/hooks/useDeploy";
-import { Button } from "./ui/button";
-import { ArchiveX, Copy } from "lucide-react";
-import useCompile from "@/hooks/useCompile";
-import { useFileContent } from "@/state/hooks";
+import useNow from "@/hooks/useNow";
 import { Input } from "./ui/input";
-import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { IParam } from "@/lib/services/types/common";
 import { mapIfValid } from "@/utils";
-import { getLatestCompiled } from "@/state/utils";
+import { getLatestCompiled, getLatestDeployedAddress } from "@/state/utils";
+import { explorerUrl, shortId, timeAgo } from "@/lib/explorer";
+import { cn } from "@/lib/utils";
+import { ContractsDeployed } from "@/types/idl";
+import CopyButton from "./CopyButton";
 
 export function extractConstructorParamTypes(contractCode: string): string[] {
   const match = contractCode.match(/constructor\s*\(([\s\S]*?)\)/);
@@ -32,252 +36,286 @@ export function extractConstructorParamTypes(contractCode: string): string[] {
     .filter((t): t is string => Boolean(t));
 }
 
-function DeployExplorer() {
-  const { compileFile } = useCompile();
-  const code = useFileContent();
+function extractConstructorParamNames(contractCode: string): string[] {
+  const match = contractCode.match(/constructor\s*\(([\s\S]*?)\)/);
+  if (!match || !match[1].trim()) return [];
+  return match[1].split(",").map((param) => param.trim().split(/\s+/).pop() ?? "");
+}
 
+function validateParam(value: string, type: string): string | null {
+  if (!value.trim()) return "Required";
+  const [mapped, mappedType] = mapIfValid(value, type);
+  return mapped === null || mappedType === "" ? `Invalid ${type}` : null;
+}
+
+const NO_DEPLOYMENTS: ContractsDeployed = {};
+
+function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <h3 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-ide-muted">
+      {children}
+      {aside && <span className="font-normal normal-case tracking-normal">{aside}</span>}
+    </h3>
+  );
+}
+
+function DeployExplorer() {
+  const now = useNow();
   const { deployWasm } = useDeploy();
-  const currFileTabSelected = useSelector(store, (state) => state.context.currentFile);
   const compiled = useSelector(store, (state) => state.context.compiled);
-  const currWasm = useSelector(store, (state) => state.context.currentWasm);
-  const deployed = useSelector(store, (state) => state.context.contract?.deployed) || {};
+  const deployed = useSelector(store, (state) => state.context.contract?.deployed) ?? NO_DEPLOYMENTS;
   const files = useSelector(store, (state) => state.context.files);
-  const [keys, setKeys] = useState<string[]>([]);
-  const [paramTypesList, setParamTypesList] = useState<string[]>([]);
-  const [paramList, setParamList] = useState<IParam[]>([]);
-  const [copied, setCopied] = useState<boolean>(!1);
+  const busy = useSelector(store, (state) => state.context.showSpinnerDialog);
   const latestCompiled = getLatestCompiled(compiled);
-  const [selected, setSelected] = useState<string>(latestCompiled?.path ?? '');
+  const [selected, setSelected] = useState<string>(latestCompiled?.path ?? "");
+  const [paramValues, setParamValues] = useState<string[]>([]);
+  const [touched, setTouched] = useState<Record<number, boolean>>({});
+  const [attempted, setAttempted] = useState(false);
+  const [deploying, setDeploying] = useState(false);
 
   // Get the content of the selected file (not the current tab)
-  const selectedFileContent = selected ? files[selected] || '' : '';
+  const selectedFileContent = selected ? files[selected] || "" : "";
+  const paramTypesList = useMemo(() => extractConstructorParamTypes(selectedFileContent), [selectedFileContent]);
+  const paramNames = useMemo(() => extractConstructorParamNames(selectedFileContent), [selectedFileContent]);
+  const paramErrors = paramTypesList.map((t, i) => validateParam(paramValues[i] ?? "", t));
+  const selectedCompiled = compiled.find((c) => c.path === selected);
 
   useEffect(() => {
-    setSelected(latestCompiled?.path ?? '');
-  }, [latestCompiled?.path, latestCompiled?.compiledAt])
+    setSelected(latestCompiled?.path ?? "");
+  }, [latestCompiled?.path, latestCompiled?.compiledAt]);
 
   useEffect(() => {
-    setParamList([]);
-  }, [selected])
+    setParamValues([]);
+    setTouched({});
+    setAttempted(false);
+  }, [selected]);
 
-  useEffect(() => {
-    console.log('[tur] compiled updated:', compiled)
-    // Extract parameters from the selected file content, not current tab
-    let paramTypes = extractConstructorParamTypes(selectedFileContent);
-    setParamTypesList(paramTypes)
-    console.log('[selected file] paramTypes:', paramTypes);
-  }, [compiled, selectedFileContent])
-
-  const handleSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const v = event.target.value;
-    console.log("[tur] Custom selected:", v);
-    setSelected(v);
-    // Don't change the current tab, just update the selected contract for deployment
-    // Extract parameters from the newly selected file
-    const selectedContent = files[v] || '';
-    let paramTypes = extractConstructorParamTypes(selectedContent);
-    setParamTypesList(paramTypes);
-    console.log('[selected file] paramTypes:', paramTypes);
-  };
-
-  useEffect(() => {
-    const ks = Object.keys(deployed)
-    console.log('[tur] useEffect deployed:', ks)
-    setKeys(ks || [])
-  }, [deployed])
-
-  const toggleCollapsed = (e: React.MouseEvent<HTMLElement>, k: string) => {
-    // const target = e.target as HTMLElement;
-    // const div = target.nextElementSibling as HTMLElement | null;
-
-    // if(div) {
-    //   div.style.display = div.style.display === 'none' ? 'block' : 'none'
-    // }
-    const span = e.currentTarget as HTMLElement;
-    const parentP = span.parentElement;
-    const containerDiv = parentP?.parentElement;
-
-    const hiddenDiv = containerDiv?.querySelector('div') as HTMLElement | null;
-
-    if (hiddenDiv) {
-      hiddenDiv.style.display = hiddenDiv.style.display === 'none' ? 'block' : 'none';
+  const deployCountByName = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const info of Object.values(deployed)) {
+      counts[info.fileName] = (counts[info.fileName] ?? 0) + 1;
     }
-  }
+    return counts;
+  }, [deployed]);
+
+  // Deployed instances, newest first; the newest one starts expanded.
+  const entries = useMemo(
+    () => Object.entries(deployed).sort((a, b) => b[1].deployedAt - a[1].deployedAt),
+    [deployed],
+  );
+  const latestDeployed = getLatestDeployedAddress(deployed);
+  const [openContracts, setOpenContracts] = useState<string[]>(latestDeployed ? [latestDeployed] : []);
+  const previousLatest = useRef(latestDeployed);
+
+  useEffect(() => {
+    if (latestDeployed && latestDeployed !== previousLatest.current) {
+      setOpenContracts((prev) => (prev.includes(latestDeployed) ? prev : [latestDeployed, ...prev]));
+    }
+    previousLatest.current = latestDeployed;
+  }, [latestDeployed]);
 
   const handleDeploy = async () => {
-    if (paramList.length !== paramTypesList.length) {
-      toast.error(`Error: fill all constructor parameters!`);
-      return
+    setAttempted(true);
+    if (!selected) return;
+    if (paramErrors.some(Boolean)) {
+      toast.error("Error: fill all constructor parameters!");
+      return;
     }
 
-    console.log('[tur] deploying selected contract:', selected)
-    console.log('[tur] current tab:', currFileTabSelected)
-
-    // Pass the selected file path directly to deployWasm
-    const result = await deployWasm(null, paramList, selected)
-    console.log('[tur] deployed?', result)
-  }
-
-  const handleCopy = async (text: string) => {
+    const paramList: IParam[] = paramTypesList.map((type, seq) => ({ seq, type, value: paramValues[seq] }));
+    setDeploying(true);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(!0);
-      setTimeout(() => setCopied(!1), 1500);
-      console.log('[tur] copied!')
-    } catch (err) {
-      console.error("Copy failed", err);
+      // Pass the selected file path directly to deployWasm
+      await deployWasm(null, paramList, selected);
+      toast.success(`Deployed ${selectedCompiled?.name ?? "contract"}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Deployment failed: ${message}`);
+    } finally {
+      setDeploying(false);
     }
   };
 
-  const handleRemoveDeployed = async (k: string) => {
-    console.log('[tur] keys:', keys)
-    store.send({ type: 'deleteDeployed', addr: k })
-  }
-
-  useEffect(() => {
-    console.log('[tur] useEffect paramList:', paramList)
-  }, [paramList])
-
-  const handleParam = (v: string, i: number, t: string) => {
-    console.log("Changed value:", v, i, t);
-
-    // clone paramList to avoid mutating state directly
-    const params = [...paramList];
-
-    if (!v) {
-      // remove param at index if empty
-      params.splice(i, 1);
-    } else {
-      // validate and map value
-      const [mappedValue, mappedType] = mapIfValid(v, t);
-      console.log("mappedValue", mappedValue, "mappedType", mappedType);
-      if (mappedValue === null || mappedType === "") {
-        console.warn(`Invalid value '${v}' for type '${t}'`);
-        return;
-      }
-
-      const paramEntry = { seq: i, value: mappedValue, type: mappedType };
-
-      if (params.length <= i) {
-        params.push(paramEntry);
-      } else {
-        params[i] = paramEntry;
-      }
-    }
-
-    setParamList(params);
-    console.log("params", params, "paramList", paramList);
-  };
-
-
-  const handleBlurOrEnter = (
-    e: React.KeyboardEvent<HTMLInputElement> | React.FocusEvent<HTMLInputElement>,
-    i: number,
-    t: string
-  ) => {
-    if ("key" in e) {
-      // KeyDown event
-      if (e.key === "Enter") {
-        handleParam(e.currentTarget.value, i, t);
-      }
-    } else {
-      // Blur event
-      handleParam(e.currentTarget.value, i, t);
-    }
+  const handleRemoveDeployed = (addr: string) => {
+    store.send({ type: "deleteDeployed", addr });
   };
 
   return (
-    <div className=" ">
-      <div className="">
-        <h2 className="text-base uppercase px-3">Deploy Explorer</h2>
-      </div>
-      <div className="mt-10 relative z-10 px-3 overflow-x-clip">
-        <div>
-          <div style={{ marginBottom: '1rem' }}>
-            <p style={{ marginBottom: '1rem' }}>CONTRACTS</p>
-            <select
-              disabled={compiled.length == 0}
-              value={selected}
-              onChange={handleSelect}
-              className="w-48 px-4 py-2 rounded shadow-md"
-              style={{
-                backgroundColor: 'hsl(var(--background))',
-                color: 'white',
-                border: '1px solid hsl(var(--card))',
-              }}
-            >
-              {compiled.map((c, i) => (
-                <option key={`${c.path}__${i}`} value={c.path} style={{ backgroundColor: 'hsl(var(--card))' }}>{c.name}</option>
-              ))}
-            </select>
-
+    <div className="space-y-5 text-ide-subtle">
+      {/* Contract picker */}
+      <section>
+        <SectionTitle>Contract</SectionTitle>
+        {compiled.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-ide-border px-4 py-5 text-center">
+            <FileCode2 size={18} className="mx-auto mb-2 text-ide-faint" />
+            <p className="text-xs text-ide-muted">No compiled contracts</p>
+            <p className="mt-1 text-[11px] text-ide-faint">Compile a .sol file to deploy it</p>
           </div>
-        </div>
-        {
-          paramTypesList.length > 0 &&
-          <div className="relative inline-block w-48 mb-2 mt-2">
-            <div className="flex flex-col gap-2">
-              {
-                paramTypesList.map((t, i) => (
-                  <Input
-                    key={`${t}__${i}`}
-                    placeholder={t}
-                    className="h-8 s-full rounded-sm"
-                    onBlur={e => handleBlurOrEnter(e, i, t)}
-                    onKeyDown={e => handleBlurOrEnter(e, i, t)}
-                  />
-                ))
-              }
-            </div>
-          </div>
-        }
-        <div className="relative inline-block w-48">
-          <div>
-            <Button
-              disabled={compiled.length == 0}
-              variant="outline"
-              size="lg"
-              onClick={handleDeploy}
-            >
-              Depoly
-            </Button>
-          </div>
-        </div>
-        {keys.length ? <p style={{ marginTop: '1rem', marginBottom: '1rem' }}>DEPLOYED</p> : <></>}
-        <div className="flex flex-col gap-2">
-          {
-            keys.map((k, i) => (
-              <div key={`main_${k}__${i}`}>
-                <p
-                  key={`sub_0_${k}__${(i + 1) * 2}`}
-                  style={{ display: 'flex', justifyContent: 'space-between' }}
-                >
-                  <span style={{ cursor: 'pointer' }} onClick={e => toggleCollapsed(e, k)}>
-                    {`${k.substring(0, 5)}..${k.substring(50)}`}
+        ) : (
+          <Select value={selected} onValueChange={setSelected}>
+            <SelectTrigger className="h-auto min-h-10 border-ide-border bg-ide-elevated px-3 py-2 text-left hover:border-ide-border-strong focus:ring-1 focus:ring-brand focus:ring-offset-0">
+              <SelectValue placeholder="Select a contract…">
+                {selectedCompiled && (
+                  <span className="flex min-w-0 items-center gap-2">
+                    <FileCode2 size={14} className="shrink-0 text-brand-soft" />
+                    <span className="truncate text-[13px] font-medium text-ide-text">{selectedCompiled.name}</span>
+                    <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                      Compiled
+                    </span>
                   </span>
-                  <Copy style={{ cursor: 'pointer' }} size={16} onClick={e => handleCopy(k)} />
-                  {/* {copied && <span style={{ color: "green" }}>Copied!</span>} */}
-                  <ArchiveX style={{ cursor: 'pointer' }} size={16} onClick={e => handleRemoveDeployed(k)} />
-                </p>
-                <div key={`sub_1_${k}__${(i + 1) * 3}`} style={{ display: 'none' }}>
-                  {
-                    deployed[k] && deployed[k].methods && deployed[k].methods.map((item, i) => (
-                      <InvokeFunction contractAddress={k} key={`${item.name}__${i}__${item.type}`} method={item} />
-                    ))
-                  }
-                </div>
-              </div>
-            )
-            )
-          }
-        </div>
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="border-ide-border bg-ide-panel">
+              {[...compiled]
+                .sort((a, b) => b.compiledAt - a.compiledAt)
+                .map((c) => {
+                  const count = deployCountByName[c.name] ?? 0;
+                  return (
+                    <SelectItem key={c.path} value={c.path} className="py-2 focus:bg-ide-hover">
+                      <span className="flex flex-col">
+                        <span className="text-[13px] text-ide-text">{c.name}</span>
+                        <span className="text-[11px] text-ide-muted">
+                          Compiled {timeAgo(c.compiledAt, now)}
+                          {count > 0 && ` · ${count} deployed`}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+            </SelectContent>
+          </Select>
+        )}
+      </section>
 
-        {/* <Hide open={idl.length === 0}>
-          <div className="text-center">
-            <p>No Function or IDL Specified</p>
+      {/* Constructor */}
+      {paramTypesList.length > 0 && (
+        <section>
+          <SectionTitle>Constructor</SectionTitle>
+          <div className="space-y-2.5">
+            {paramTypesList.map((t, i) => {
+              const showError = (touched[i] || attempted) && paramErrors[i];
+              return (
+                <label key={`${t}__${i}`} className="block space-y-1">
+                  <span className="flex items-center gap-1.5 text-xs">
+                    <span className="font-mono text-ide-text">{paramNames[i] || `arg${i}`}</span>
+                    <span className="rounded bg-ide-hover px-1 py-px font-mono text-[10px] text-ide-muted">{t}</span>
+                  </span>
+                  <Input
+                    value={paramValues[i] ?? ""}
+                    placeholder={`Enter ${t}`}
+                    aria-invalid={Boolean(showError)}
+                    onChange={(e) =>
+                      setParamValues((prev) => {
+                        const next = [...prev];
+                        next[i] = e.target.value;
+                        return next;
+                      })
+                    }
+                    onBlur={() => setTouched((prev) => ({ ...prev, [i]: true }))}
+                    onKeyDown={(e) => e.key === "Enter" && handleDeploy()}
+                    className={cn(
+                      "h-8 border-ide-border bg-ide-bg font-mono text-xs md:text-xs focus-visible:ring-1 focus-visible:ring-brand focus-visible:ring-offset-0",
+                      showError && "border-red-500/60 focus-visible:ring-red-500",
+                    )}
+                  />
+                  {showError && <span className="block text-[11px] text-red-400">{paramErrors[i]}</span>}
+                </label>
+              );
+            })}
           </div>
-        </Hide> */}
-      </div>
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={handleDeploy}
+        disabled={compiled.length === 0 || !selected || deploying || busy}
+        className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-brand text-[13px] font-medium text-white shadow-sm shadow-brand/20 transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {deploying ? <Loader2 size={14} className="animate-spin" /> : <Rocket size={14} />}
+        {deploying ? "Deploying…" : "Deploy"}
+      </button>
+
+      {/* Deployed instances */}
+      {entries.length > 0 && (
+        <section>
+          <SectionTitle aside={entries.length}>Deployed contracts</SectionTitle>
+          <AccordionPrimitive.Root type="multiple" value={openContracts} onValueChange={setOpenContracts} className="space-y-2">
+            {entries.map(([k, info]) => (
+              <AccordionPrimitive.Item
+                key={k}
+                value={k}
+                className="overflow-hidden rounded-lg border border-ide-border bg-ide-elevated transition-colors data-[state=open]:border-ide-border-strong"
+              >
+                <AccordionPrimitive.Header className="flex items-center pr-1.5">
+                  <AccordionPrimitive.Trigger className="group flex min-w-0 flex-1 items-center gap-2 px-2.5 py-2 text-left outline-none focus-visible:bg-ide-hover">
+                    <ChevronRight
+                      size={14}
+                      className="shrink-0 text-ide-muted transition-transform duration-200 group-data-[state=open]:rotate-90"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-[13px] font-medium text-ide-text">{info.fileName}</span>
+                        {k === latestDeployed && (
+                          <span className="shrink-0 rounded-full bg-brand-muted px-1.5 py-px text-[10px] font-medium text-brand-soft">
+                            Latest
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-ide-muted">
+                        <span className="font-mono" title={k}>
+                          {shortId(k, 5, 5)}
+                        </span>
+                        <span>·</span>
+                        <span>{timeAgo(info.deployedAt, now)}</span>
+                      </span>
+                    </span>
+                  </AccordionPrimitive.Trigger>
+                  <CopyButton value={k} title="Copy contract address" />
+                  <a
+                    href={explorerUrl.contract(k)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View on Stellar Expert"
+                    aria-label="View on Stellar Expert"
+                    className="flex h-6 w-6 items-center justify-center rounded text-ide-muted transition-colors hover:bg-ide-hover hover:text-ide-text"
+                  >
+                    <ExternalLink size={13} />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveDeployed(k)}
+                    title="Remove from list"
+                    aria-label="Remove from list"
+                    className="flex h-6 w-6 items-center justify-center rounded text-ide-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </AccordionPrimitive.Header>
+                <AccordionPrimitive.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                  <div className="space-y-1.5 border-t border-ide-border bg-ide-panel/60 p-2">
+                    {info.methods && info.methods.length > 0 ? (
+                      info.methods.map((item, i) => (
+                        <InvokeFunction
+                          key={`${item.name}__${i}__${item.type}`}
+                          contractAddress={k}
+                          method={item}
+                          readOnly={info.readOnlyMethods?.includes(item.name)}
+                        />
+                      ))
+                    ) : (
+                      <p className="flex items-center justify-center gap-1.5 py-3 text-xs text-ide-muted">
+                        <Layers size={13} /> No callable functions
+                      </p>
+                    )}
+                  </div>
+                </AccordionPrimitive.Content>
+              </AccordionPrimitive.Item>
+            ))}
+          </AccordionPrimitive.Root>
+        </section>
+      )}
     </div>
   );
 }

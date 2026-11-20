@@ -7,10 +7,46 @@ import { init, mountService } from "@/lib/editor";
 import { useFileContent } from "@/state/hooks";
 import { store } from "@/state";
 import { useSelector } from "@xstate/store/react";
+import type { Monaco } from "@monaco-editor/react";
+
+const DARK_THEME = "solang-dark";
+
+// Chrome colors for the layered slate palette; token colors inherit from vs-dark.
+function defineIdeTheme(monaco: Monaco) {
+  monaco.editor.defineTheme(DARK_THEME, {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#0D1117",
+      "editor.foreground": "#E6EDF3",
+      "editor.lineHighlightBackground": "#161B22",
+      "editor.lineHighlightBorder": "#00000000",
+      "editor.selectionBackground": "#6366F140",
+      "editor.inactiveSelectionBackground": "#6366F126",
+      "editorCursor.foreground": "#818CF8",
+      "editorLineNumber.foreground": "#6E7681",
+      "editorLineNumber.activeForeground": "#C9D1D9",
+      "editorIndentGuide.background1": "#FFFFFF0D",
+      "editorIndentGuide.activeBackground1": "#FFFFFF26",
+      "editorGutter.background": "#0D1117",
+      "editorWidget.background": "#161B22",
+      "editorWidget.border": "#FFFFFF14",
+      "editorSuggestWidget.background": "#161B22",
+      "editorSuggestWidget.border": "#FFFFFF14",
+      "editorSuggestWidget.selectedBackground": "#21262D",
+      "editorHoverWidget.background": "#161B22",
+      "editorHoverWidget.border": "#FFFFFF14",
+      "scrollbarSlider.background": "#FFFFFF14",
+      "scrollbarSlider.hoverBackground": "#FFFFFF26",
+      "scrollbarSlider.activeBackground": "#FFFFFF33",
+    },
+  });
+}
 
 function Editor() {
   const { resolvedTheme } = useTheme();
-  const theme = { dark: "vs-dark", light: "vs-light" }[resolvedTheme!] || resolvedTheme;
+  const theme = { dark: DARK_THEME, light: "vs-light" }[resolvedTheme!] || resolvedTheme;
   const code = useFileContent();
   const { fontSize } = useSelector(store, (state) => state.context.preferences);
   
@@ -30,11 +66,14 @@ function Editor() {
     : '/workspace/default.sol';
 
   return (
-    <div className="bg-[#0F0F23] h-full w-full min-w-0 overflow-hidden relative [&_.monaco-editor]:!bg-[#0F0F23] [&_.monaco-editor-background]:!bg-[#0F0F23] [&_.monaco-editor_.margin]:!bg-[#0F0F23] [&_.monaco-editor_.glyph-margin]:!bg-[#0F0F23] [&_.monaco-editor_.lines-content]:!bg-[#0F0F23]">
+    <div className="bg-ide-bg h-full w-full min-w-0 overflow-hidden relative">
       <MonacoEditor
         value={code}
         path={modelPath}
-        beforeMount={init}
+        beforeMount={(monaco) => {
+          defineIdeTheme(monaco);
+          return init(monaco);
+        }}
         onMount={mountService}
         height="100%"
         defaultLanguage="solidity"
@@ -46,7 +85,6 @@ function Editor() {
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           automaticLayout: true,
-          theme: "vs-dark",
           padding: { top: 10, bottom: 20 },
           renderWhitespace: 'none',
           wordWrap: 'off',

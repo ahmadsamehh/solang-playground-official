@@ -8,7 +8,7 @@ import { createPath } from "./utils";
 import { MessageType } from "vscode-languageserver-protocol";
 import { nanoid } from "nanoid";
 import { Contract, ContractsDeployed, IDL } from "@/types/idl";
-import { ICompiled, ICurrentWasm } from "@/types/contracts";
+import { ICompiled, ICurrentWasm, TxRecord } from "@/types/contracts";
 
 export const events = {
   setDialogSpinner: (context: Context, event: { show: boolean }) => {
@@ -130,6 +130,15 @@ export const events = {
       message: event.message,
     });
   },
+  clearLogs(context: Context) {
+    context.logs = [];
+  },
+  addTransaction(context: Context, event: Omit<TxRecord, "id" | "timestamp">) {
+    context.transactions.push({ ...event, id: nanoid(), timestamp: Date.now() });
+  },
+  clearTransactions(context: Context) {
+    context.transactions = [];
+  },
   changeFontSize(context: Context, event: { fontSize: number }) {
     context.preferences.fontSize = isNaN(event.fontSize) ? 14 : event.fontSize;
   },
@@ -137,16 +146,21 @@ export const events = {
   // setContractIdl(context: Context, event: { idl: IDL }) {
   //   context.contract.methods = event.idl;
   // },
-  updateContract(context: Context, event: Partial<Contract> & { fileName?: string }) {
-    const addr = event.address;
+  updateContract(
+    context: Context,
+    event: Partial<Contract> & { fileName?: string; readOnlyMethods?: string[] },
+  ) {
+    const { readOnlyMethods, ...rest } = event;
+    const addr = rest.address;
     if (addr && Object.keys(context.contract.deployed).indexOf(addr || "") == -1) {
       context.contract.deployed[addr] = {
         methods: context.contract.methods,
-        fileName: event.fileName || "Unknown Contract",
+        fileName: rest.fileName || "Unknown Contract",
         deployedAt: Date.now(),
+        readOnlyMethods,
       };
     }
-    Object.assign(context.contract, event);
+    Object.assign(context.contract, rest);
   },
 
   deleteDeployed(context: Context, event: { addr: string }) {

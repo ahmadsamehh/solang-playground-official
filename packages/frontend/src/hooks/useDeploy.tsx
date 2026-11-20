@@ -13,6 +13,7 @@ import { FileType } from "@/types/explorer";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import useWallet from "./useWallet";
+import { getReadOnlyFunctions } from "@/lib/solidity-mutability";
 
 function useDeploy() {
   const { compileFile } = useCompile();
@@ -95,7 +96,18 @@ function useDeploy() {
                         fileName = match ? match[1] : 'Unknown';
                     }
                 }
-                store.send({ type: "updateContract", address: contractAddress, fileName });
+                const readOnlyMethods = fileToDeploy
+                    ? getReadOnlyFunctions(store.getSnapshot().context.files[fileToDeploy] || "")
+                    : [];
+                store.send({ type: "updateContract", address: contractAddress, fileName, readOnlyMethods });
+                store.send({
+                    type: "addTransaction",
+                    kind: "deploy",
+                    status: "success",
+                    hash: transactionHash || undefined,
+                    contractId: contractAddress,
+                    label: fileName,
+                });
                 logger.info(`Contract deployed successfully! Address: ${contractAddress}`);
             } else {
                 logger.error("Deployment completed but no address was returned");
@@ -104,6 +116,13 @@ function useDeploy() {
         } catch (e) {
             const errorMessage = e instanceof Error ? e.message : String(e);
             logger.error(`Deployment failed: ${errorMessage}`);
+            store.send({
+                type: "addTransaction",
+                kind: "deploy",
+                status: "failed",
+                label: fileToDeploy ? (fileToDeploy.match(/\['(.+?)'\]$/)?.[1] ?? fileToDeploy) : "Unknown",
+                error: errorMessage,
+            });
             console.log('deployment error', e);
 
             // Throw the error so it can be caught by the caller (DeployContractModal)

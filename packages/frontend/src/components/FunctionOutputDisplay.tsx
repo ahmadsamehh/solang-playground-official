@@ -27,15 +27,15 @@ function FunctionOutputDisplay({ functionName, returnValue, logs, onClose }: Fun
     };
 
     return (
-        <div className="bg-[#1A1B3A] border border-[#2d2d2d] rounded-lg p-4 space-y-4 overflow-hidden">
+        <div className="bg-ide-panel border border-ide-border rounded-lg p-4 space-y-4 overflow-hidden">
             <div className="flex items-center justify-between">
-                <h3 className="text-[#cccccc] font-medium text-lg">Function Output</h3>
+                <h3 className="text-ide-subtle font-medium text-lg">Function Output</h3>
                 <div className="flex gap-2">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={handleCopy}
-                        className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
+                        className="border-ide-border text-ide-subtle hover:bg-ide-hover"
                     >
                         {copied ? <FaCheck size={12} /> : <FaCopy size={12} />}
                         {copied ? "Copied!" : "Copy"}
@@ -44,7 +44,7 @@ function FunctionOutputDisplay({ functionName, returnValue, logs, onClose }: Fun
                         variant="outline"
                         size="sm"
                         onClick={onClose}
-                        className="border-[#404040] text-[#cccccc] hover:bg-[#2a2b5a]"
+                        className="border-ide-border text-ide-subtle hover:bg-ide-hover"
                     >
                         <FaTimes size={12} />
                     </Button>
@@ -54,16 +54,16 @@ function FunctionOutputDisplay({ functionName, returnValue, logs, onClose }: Fun
             <div className="space-y-3">
                 {/* Function Name */}
                 <div className="min-w-0">
-                    <label className="text-[#9ca3af] text-sm font-medium">Function</label>
-                    <div className="bg-[#2d2d2d] border border-[#404040] rounded-md px-3 py-2 text-white font-mono min-w-0 break-all whitespace-pre-wrap overflow-x-auto">
+                    <label className="text-ide-muted text-sm font-medium">Function</label>
+                    <div className="bg-ide-elevated border border-ide-border rounded-md px-3 py-2 text-white font-mono min-w-0 break-all whitespace-pre-wrap overflow-x-auto">
                         {functionName}
                     </div>
                 </div>
 
                 {/* Return Value */}
                 <div className="min-w-0">
-                    <label className="text-[#9ca3af] text-sm font-medium">Return Value</label>
-                    <div className="bg-[#2d2d2d] border border-[#404040] rounded-md px-3 py-2 text-white font-mono min-w-0 break-all whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
+                    <label className="text-ide-muted text-sm font-medium">Return Value</label>
+                    <div className="bg-ide-elevated border border-ide-border rounded-md px-3 py-2 text-white font-mono min-w-0 break-all whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
                         {returnValue !== null ? safeStringify(returnValue) : "No return value"}
                     </div>
                 </div>
@@ -71,8 +71,8 @@ function FunctionOutputDisplay({ functionName, returnValue, logs, onClose }: Fun
                 {/* Logs */}
                 {logs.length > 0 && (
                     <div className="min-w-0">
-                        <label className="text-[#9ca3af] text-sm font-medium">Logs</label>
-                        <div className="bg-[#2d2d2d] border border-[#404040] rounded-md px-3 py-2 max-h-32 overflow-y-auto">
+                        <label className="text-ide-muted text-sm font-medium">Logs</label>
+                        <div className="bg-ide-elevated border border-ide-border rounded-md px-3 py-2 max-h-32 overflow-y-auto">
                             {logs.map((log, index) => (
                                 <div key={index} className="text-white font-mono text-sm break-all whitespace-pre-wrap">
                                     {log}

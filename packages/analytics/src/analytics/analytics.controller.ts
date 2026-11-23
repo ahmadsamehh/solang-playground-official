@@ -1,6 +1,11 @@
-import { Controller, Post, Body, Get } from "@nestjs/common";
+import { Controller, Post, Body, Get, Query } from "@nestjs/common";
 import { AnalyticsService } from "./analytics.service";
-import { RecordDeployDto, RecordInvokeDto, RecordCompileDto } from "./analytics.dto";
+import {
+  RecordDeployDto,
+  RecordInvokeDto,
+  RecordCompileDto,
+} from "./analytics.dto";
+import { parseGranularity, parseRangeKey } from "src/libs/range";
 
 @Controller("analytics")
 export class AnalyticsController {
@@ -72,6 +77,28 @@ export class AnalyticsController {
   @Get("active-users-per-week")
   async getActiveUsersPerWeek() {
     return this.analyticsService.getActiveUsersPerWeek();
+  }
+
+  @Get("active-users")
+  async getActiveUsers(
+    @Query("range") range?: string,
+    @Query("granularity") granularity?: string,
+  ) {
+    return this.analyticsService.getActiveUsers(
+      parseRangeKey(range),
+      parseGranularity(granularity),
+    );
+  }
+
+  @Get("activity-timeseries")
+  async getActivityTimeseries(
+    @Query("range") range?: string,
+    @Query("granularity") granularity?: string,
+  ) {
+    return this.analyticsService.getActivityTimeseries(
+      parseRangeKey(range),
+      parseGranularity(granularity),
+    );
   }
 
   @Get("info")

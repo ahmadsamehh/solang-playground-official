@@ -23,7 +23,9 @@ export function fillMissingTimeUnits<T extends { date: string }>(
 
   const map = new Map<string, T>();
   for (const d of data) {
-    const key = formatISO(normalize(new Date(d.date)), { representation: "date" });
+    const key = formatISO(normalize(new Date(d.date)), {
+      representation: "date",
+    });
     map.set(key, d);
   }
 

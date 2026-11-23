@@ -2,6 +2,7 @@ import { getAnalyticsUrl } from "@/lib/utils";
 import { CopyableCell } from "./copyable-cell";
 import { ActionBadge } from "./action-badge";
 import { Panel } from "./panel";
+import { RelativeTime } from "./relative-time";
 
 async function getRecentActivity() {
   const url = getAnalyticsUrl();
@@ -19,15 +20,6 @@ async function getRecentActivity() {
   }[];
 }
 
-const timestampFormat = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-});
-
 export async function RecentActivityTable() {
   const recentActivity = await getRecentActivity();
 
@@ -41,7 +33,7 @@ export async function RecentActivityTable() {
               <th className="px-4 py-2 font-semibold">Contract</th>
               <th className="px-4 py-2 font-semibold">Action</th>
               <th className="px-4 py-2 font-semibold">Transaction hash</th>
-              <th className="px-4 py-2 text-right font-semibold">Timestamp</th>
+              <th className="px-4 py-2 text-right font-semibold">When</th>
             </tr>
           </thead>
           <tbody>
@@ -60,7 +52,7 @@ export async function RecentActivityTable() {
                   <CopyableCell text={activity.hash || ""} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-2 text-right text-ide-muted">
-                  {timestampFormat.format(new Date(activity.timestamp))}
+                  <RelativeTime value={activity.timestamp} />
                 </td>
               </tr>
             ))}

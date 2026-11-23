@@ -1,13 +1,21 @@
 import { Injectable } from "@nestjs/common";
-import { TransactionType } from "@prisma/client";
+import { Prisma, TransactionType } from "@prisma/client";
 import { PrismaService } from "prisma/prisma.service";
 import { RecordDeployDto, RecordInvokeDto } from "./analytics.dto";
 import { fillMissingTimeUnits } from "src/libs/utils";
 import { ActivityOverTimeType } from "src/libs/types";
+import {
+  fillBuckets,
+  Granularity,
+  RangeKey,
+  ResolvedRange,
+  resolveRange,
+  truncateUtc,
+} from "src/libs/range";
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async recordDeployment({ wallet, address, name, txHash }: RecordDeployDto) {
     const contract = await this.prisma.contract.create({
@@ -234,6 +242,84 @@ export class AnalyticsService {
     });
 
     return filled;
+  }
+
+  /** Earliest recorded activity of any kind (start of the "all" range). */
+  private async earliestActivity(): Promise<Date | null> {
+    const [row] = await this.prisma.$queryRaw<{ earliest: Date | null }[]>`
+      SELECT LEAST(
+        (SELECT MIN("createdAt") FROM "Transaction"),
+        (SELECT MIN("createdAt") FROM "Activity"),
+        (SELECT MIN("createdAt") FROM "User")
+      ) AS earliest;
+    `;
+    return row?.earliest ?? null;
+  }
+
+  async resolveRange(key: RangeKey): Promise<ResolvedRange> {
+    return resolveRange(
+      key,
+      key === "all" ? await this.earliestActivity() : null,
+    );
+  }
+
+  /** Distinct wallets with any compile/deploy/invoke per bucket. Buckets are whole days/ISO weeks/months. */
+  async getActiveUsers(rangeKey: RangeKey, granularity: Granularity) {
+    const range = await this.resolveRange(rangeKey);
+    const from = truncateUtc(range.from, granularity);
+    const rows = await this.prisma.$queryRaw<
+      { bucket: Date; users: number }[]
+    >(Prisma.sql`
+      SELECT date_trunc(${granularity}, a."createdAt") AS bucket,
+             COUNT(DISTINCT a."userId")::int AS users
+      FROM (
+        SELECT "userId", "createdAt" FROM "Activity"
+        UNION ALL
+        SELECT "userId", "createdAt" FROM "Transaction"
+      ) AS a
+      WHERE a."userId" IS NOT NULL AND a."createdAt" >= ${from} AND a."createdAt" < ${range.to}
+      GROUP BY 1
+      ORDER BY 1;
+    `);
+    return fillBuckets(rows, {
+      from,
+      to: range.to,
+      granularity,
+      keys: ["users"] as const,
+    });
+  }
+
+  /** Deploys, invokes and compiles per bucket, gap-filled to a continuous series. */
+  async getActivityTimeseries(rangeKey: RangeKey, granularity: Granularity) {
+    const range = await this.resolveRange(rangeKey);
+    const from = truncateUtc(range.from, granularity);
+    const rows = await this.prisma.$queryRaw<
+      {
+        bucket: Date;
+        deployments: number;
+        invocations: number;
+        compiles: number;
+      }[]
+    >(Prisma.sql`
+      SELECT date_trunc(${granularity}, a."createdAt") AS bucket,
+             COUNT(*) FILTER (WHERE a."type" = 'DEPLOY')::int AS deployments,
+             COUNT(*) FILTER (WHERE a."type" = 'INVOKE')::int AS invocations,
+             COUNT(*) FILTER (WHERE a."type" = 'COMPILE')::int AS compiles
+      FROM (
+        SELECT "createdAt", "type"::text AS "type" FROM "Transaction"
+        UNION ALL
+        SELECT "createdAt", "type"::text AS "type" FROM "Activity"
+      ) AS a
+      WHERE a."createdAt" >= ${from} AND a."createdAt" < ${range.to}
+      GROUP BY 1
+      ORDER BY 1;
+    `);
+    return fillBuckets(rows, {
+      from,
+      to: range.to,
+      granularity,
+      keys: ["deployments", "invocations", "compiles"] as const,
+    });
   }
 
   async recordCompile(wallet: string) {

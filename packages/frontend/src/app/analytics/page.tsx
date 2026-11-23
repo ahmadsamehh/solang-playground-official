@@ -1,15 +1,15 @@
 import { Activity, TrendingUp, Users, Zap } from "lucide-react";
 export const dynamic = "force-dynamic";
 import { StatCard } from "./components/stat-card";
-import { ActivityOverTimeChart } from "./components/activity-over-time-chart";
-import { TransactionDistributionChart } from "./components/transaction-distribution-chart";
+import { ActivityChart } from "./components/activity-chart";
+import { DeployInvokeMix } from "./components/deploy-invoke-mix";
 import { RecentActivityTable } from "./components/recent-activity-table";
 import { getAnalyticsUrl } from "@/lib/utils";
-import { UserTrendChart } from "./components/users-trend";
-import { ActiveUsersChart } from "./components/active-users";
+import { ActiveUsersChart } from "./components/active-users-chart";
 import { AnalyticsTopBar } from "./components/analytics-top-bar";
 import { SERIES } from "./chart-theme";
 import { brand } from "@/lib/theme-tokens";
+import { DEFAULT_RANGE } from "./api";
 
 async function getSummaryData() {
   const url = getAnalyticsUrl();
@@ -25,6 +25,7 @@ async function getSummaryData() {
 
 export default async function AnalyticsDashboard() {
   const { users, transactions, deploys, invokes } = await getSummaryData();
+  const range = DEFAULT_RANGE;
   return (
     <div className="min-h-screen bg-ide-bg font-sans text-ide-text">
       <AnalyticsTopBar />
@@ -37,16 +38,11 @@ export default async function AnalyticsDashboard() {
           <StatCard title="Total Transactions" value={transactions} icon={<TrendingUp size={16} />} color={SERIES.COMPILE.soft} tint={SERIES.COMPILE.muted} />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ActiveUsersChart />
-          <UserTrendChart />
-        </div>
+        <ActivityChart range={range} />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="min-w-0 lg:col-span-2">
-            <ActivityOverTimeChart />
-          </div>
-          <TransactionDistributionChart />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ActiveUsersChart range={range} />
+          <DeployInvokeMix range={range} />
         </div>
 
         <RecentActivityTable />

@@ -10,6 +10,7 @@ import InvokeFunction from "./InvokeFunction";
 import useDeploy from "@/hooks/useDeploy";
 import useNow from "@/hooks/useNow";
 import { Input } from "./ui/input";
+import { SectionLabel } from "./ui/section-label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { IParam } from "@/lib/services/types/common";
 import { mapIfValid } from "@/utils";
@@ -49,15 +50,6 @@ function validateParam(value: string, type: string): string | null {
 }
 
 const NO_DEPLOYMENTS: ContractsDeployed = {};
-
-function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
-  return (
-    <h3 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-ide-muted">
-      {children}
-      {aside && <span className="font-normal normal-case tracking-normal">{aside}</span>}
-    </h3>
-  );
-}
 
 function DeployExplorer() {
   const now = useNow();
@@ -144,7 +136,7 @@ function DeployExplorer() {
     <div className="space-y-5 text-ide-subtle">
       {/* Contract picker */}
       <section>
-        <SectionTitle>Contract</SectionTitle>
+        <SectionLabel className="mb-2">Contract</SectionLabel>
         {compiled.length === 0 ? (
           <div className="rounded-lg border border-dashed border-ide-border px-4 py-5 text-center">
             <FileCode2 size={18} className="mx-auto mb-2 text-ide-faint" />
@@ -191,7 +183,7 @@ function DeployExplorer() {
       {/* Constructor */}
       {paramTypesList.length > 0 && (
         <section>
-          <SectionTitle>Constructor</SectionTitle>
+          <SectionLabel className="mb-2">Constructor</SectionLabel>
           <div className="space-y-2.5">
             {paramTypesList.map((t, i) => {
               const showError = (touched[i] || attempted) && paramErrors[i];
@@ -240,7 +232,7 @@ function DeployExplorer() {
       {/* Deployed instances */}
       {entries.length > 0 && (
         <section>
-          <SectionTitle aside={entries.length}>Deployed contracts</SectionTitle>
+          <SectionLabel className="mb-2" aside={entries.length}>Deployed contracts</SectionLabel>
           <AccordionPrimitive.Root type="multiple" value={openContracts} onValueChange={setOpenContracts} className="space-y-2">
             {entries.map(([k, info]) => (
               <AccordionPrimitive.Item

@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Bug, ChevronDown, FileCode2, Hammer, Home, Loader2, Play, Rocket, X } from "lucide-react";
 import { toast } from "sonner";
 import { get } from "lodash";
 import { useSelector } from "@xstate/store/react";
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import SolangLogo from "@/assets/image/solang-logo.png";
 import { cn } from "@/lib/utils";
 import { store } from "@/state";
 import { useExplorerItem } from "@/state/hooks";
@@ -20,6 +18,8 @@ import DeployContractModal from "./DeployContractModal";
 import InvokeFunctionModal from "./InvokeFunctionModal";
 import ErrorModal from "./ErrorModal";
 import WalletPill from "./WalletPill";
+import NetworkPill from "./NetworkPill";
+import BrandMark from "./BrandMark";
 import { Kbd } from "./ui/kbd";
 import { FileType } from "@/types/explorer";
 
@@ -78,66 +78,6 @@ function TabItem({ path }: { path: string }) {
 
 function TabHome({ path }: { path: string }) {
   return <TabShell path={path} label="Home" icon={<Home size={13} />} />;
-}
-
-type NetworkStatus = "checking" | "online" | "offline";
-
-function NetworkPill() {
-  const [status, setStatus] = useState<NetworkStatus>("checking");
-  const [rpcUrl, setRpcUrl] = useState("");
-
-  useEffect(() => {
-    let disposed = false;
-
-    const run = async () => {
-      let next: { status: NetworkStatus; url: string } = { status: "offline", url: "" };
-      try {
-        const response = await fetch("/api/network/health", { cache: "no-store" });
-        const payload = await response.json().catch(() => null);
-        if (response.ok && payload?.status === "online" && payload?.rpcUrl) {
-          next = { status: "online", url: payload.rpcUrl };
-        }
-      } catch {
-        // keep offline status if the health endpoint fails
-      }
-      if (disposed) return;
-      setStatus(next.status);
-      setRpcUrl(next.url);
-    };
-
-    run();
-    const interval = window.setInterval(run, 30000);
-    return () => {
-      disposed = true;
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  const dot = { online: "bg-emerald-500", offline: "bg-red-500", checking: "bg-amber-400" }[status];
-  const ping = { online: "bg-emerald-400", offline: "bg-red-400", checking: "bg-amber-300" }[status];
-  const title =
-    status === "online"
-      ? `Testnet RPC: ${rpcUrl}`
-      : status === "offline"
-        ? "No reachable testnet RPC endpoint"
-        : "Checking testnet RPC…";
-
-  return (
-    <div
-      title={title}
-      className="flex h-8 items-center gap-2 rounded-full border border-ide-border bg-ide-elevated px-3 text-xs text-ide-subtle"
-    >
-      <span className="relative flex h-2 w-2">
-        {status !== "offline" && (
-          <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-60", ping)} />
-        )}
-        <span className={cn("relative inline-flex h-2 w-2 rounded-full", dot)} />
-      </span>
-      <span className="font-medium text-ide-text">Testnet</span>
-      {status === "offline" && <span className="text-red-400">RPC down</span>}
-      {status === "checking" && <span className="text-ide-muted">checking…</span>}
-    </div>
-  );
 }
 
 function useIsMac() {
@@ -224,11 +164,7 @@ function Header() {
     <header className="flex h-12 w-full min-w-0 shrink-0 select-none items-center justify-between gap-3 border-b border-ide-border bg-ide-panel px-3">
       {/* Left: brand + primary actions */}
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex items-center gap-2 pr-1">
-          <Image src={SolangLogo} alt="Solang Logo" width={22} height={22} />
-          <span className="text-sm font-semibold tracking-tight text-ide-text">Solang</span>
-          <span className="hidden text-sm text-ide-muted sm:inline">Playground</span>
-        </div>
+        <BrandMark product="Playground" className="pr-1" />
 
         <span className="hidden h-5 w-px bg-ide-border sm:block" />
 

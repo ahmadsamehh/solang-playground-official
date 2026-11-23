@@ -1,22 +1,16 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { Panel } from "./panel";
+import { ChartTooltip } from "./chart-tooltip";
+import { SERIES } from "../chart-theme";
 
-const CHART_1 = "#a85c3c";
-const CHART_2 = "#5c9eb8";
-
-const data = [
-  { name: "Deploy", value: 2847 },
-  { name: "Invoke", value: 15234 },
-];
-
-const COLORS = [CHART_1, CHART_2];
+const COLORS: Record<string, string> = { Deploy: SERIES.DEPLOY.color, Invoke: SERIES.INVOKE.color };
 
 export async function getTransactionDistribution() {
-  const { data, status } = await axios.get("/api/analytics/transaction-distribution");
+  const { data } = await axios.get("/api/analytics/transaction-distribution");
   return (data || []) as { name: string; value: number }[];
 }
 
@@ -28,42 +22,16 @@ export function TransactionDistributionChart() {
   });
 
   return (
-    <Card className="border-border bg-card">
-      <CardHeader>
-        <CardTitle className="text-lg">Transaction Distribution</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ name, value, percent }: any) => (
-                <span className="text-xs">
-                  {name} {(percent * 100).toFixed(0)}%
-                </span>
-              )}
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {data?.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index]} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "white",
-                border: "1px solid #2d2d2d",
-                borderRadius: "6px",
-                color: "red",
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+    <Panel title="Transaction Distribution">
+      <ResponsiveContainer width="100%" height={280}>
+        <PieChart>
+          <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" nameKey="name" stroke="none">
+            {data?.map((entry) => <Cell key={entry.name} fill={COLORS[entry.name] ?? SERIES.COMPILE.color} />)}
+          </Pie>
+          <Tooltip content={<ChartTooltip />} />
+          <Legend iconType="square" wrapperStyle={{ fontSize: 12 }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </Panel>
   );
 }

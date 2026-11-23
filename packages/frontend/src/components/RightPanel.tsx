@@ -9,6 +9,7 @@ import { getLatestCompiled, getLatestDeployedAddress } from "@/state/utils";
 import { timeAgo } from "@/lib/explorer";
 import useNow from "@/hooks/useNow";
 import CompilerOptionsModal from "./CompilerOptionsModal";
+import { SectionLabel } from "./ui/section-label";
 import DeployExplorer from "./DeployExplorer";
 import ResizeHandle, { usePanelSize } from "./ResizeHandle";
 
@@ -32,7 +33,7 @@ function BuildTab({ onOpenCompile }: { onOpenCompile: () => void }) {
   return (
     <div className="space-y-5">
       <section className="space-y-2">
-        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-ide-muted">Compiler</h3>
+        <SectionLabel>Compiler</SectionLabel>
         <button
           type="button"
           onClick={onOpenCompile}
@@ -46,10 +47,7 @@ function BuildTab({ onOpenCompile }: { onOpenCompile: () => void }) {
       </section>
 
       <section className="space-y-2">
-        <h3 className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-ide-muted">
-          Artifacts
-          {compiled.length > 0 && <span className="font-normal normal-case tracking-normal">{compiled.length}</span>}
-        </h3>
+        <SectionLabel aside={compiled.length > 0 ? compiled.length : undefined}>Artifacts</SectionLabel>
         {compiled.length === 0 ? (
           <div className="rounded-lg border border-dashed border-ide-border px-4 py-6 text-center">
             <Boxes size={18} className="mx-auto mb-2 text-ide-faint" />

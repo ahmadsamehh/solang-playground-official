@@ -1,34 +1,37 @@
-import { Card, CardContent } from "@/components/ui/card"
-import type { ReactNode } from "react"
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { SectionLabel } from "@/components/ui/section-label";
 
 interface StatCardProps {
-  title: string
-  value: string | number
-  icon: ReactNode
-  trend?: {
-    value: number
-    isPositive: boolean
-  }
+  title: string;
+  value: string | number;
+  icon: ReactNode;
+  /** Series colour for the icon tile (from chart-theme SERIES). */
+  color: string;
+  /** Translucent version of the colour for the icon background. */
+  tint: string;
+  /** Extra content below the value (delta, sparkline). */
+  children?: ReactNode;
+  className?: string;
 }
 
-export function StatCard({ title, value, icon, trend }: StatCardProps) {
+const numberFormat = new Intl.NumberFormat("en-US");
+
+export function StatCard({ title, value, icon, color, tint, children, className }: StatCardProps) {
   return (
-    <Card className="border-border bg-card hover:border-primary/50 transition-colors">
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="mt-2 text-2xl font-bold text-foreground">{value}</p>
-            {trend && (
-              <p className={`mt-2 text-xs font-medium ${trend.isPositive ? "text-green-500" : "text-red-500"}`}>
-                {trend.isPositive ? "+" : "-"}
-                {trend.value}% from last period
-              </p>
-            )}
-          </div>
-          <div className="rounded-lg bg-primary/10 p-3 text-primary">{icon}</div>
+    <section className={cn("min-w-0 rounded-lg border border-ide-border bg-ide-panel p-4", className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <SectionLabel>{title}</SectionLabel>
+          <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-ide-text">
+            {typeof value === "number" ? numberFormat.format(value) : value}
+          </p>
         </div>
-      </CardContent>
-    </Card>
-  )
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: tint, color }}>
+          {icon}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
 }

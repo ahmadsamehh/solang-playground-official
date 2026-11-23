@@ -1,39 +1,31 @@
 "use client";
 
-import { Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { shortId } from "@/lib/explorer";
+import CopyButton from "@/components/CopyButton";
 
-export function CopyableCell({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
+/** Truncated monospace identifier with a copy button; links out when `href` is given. */
+export function CopyableCell({ text, href }: { text: string; href?: string }) {
+  if (!text) return <span className="text-ide-faint">—</span>;
 
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const truncate = (str: string) => {
-    if (str.length <= 12) return str;
-    return `${str.slice(0, 6)}...${str.slice(-6)}`;
-  };
-
+  const label = shortId(text, 6, 6);
   return (
-    <div className="flex items-center gap-2">
-      <code className="text-xs font-mono bg-muted/50 px-2 py-1 rounded border border-border/50 truncate block max-w-[140px]">
-        {truncate(text)}
-      </code>
-      <button
-        onClick={handleCopy}
-        className="flex-shrink-0 p-1.5 hover:bg-muted rounded transition-colors"
-        title="Copy full address"
-      >
-        {copied ? (
-          <Check className="h-3.5 w-3.5 text-green-500" />
-        ) : (
-          <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-        )}
-      </button>
+    <div className="flex items-center gap-1 whitespace-nowrap">
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`${text} · view on Stellar Expert`}
+          className="font-mono text-xs text-ide-subtle transition-colors hover:text-brand-soft"
+        >
+          {label}
+        </a>
+      ) : (
+        <code className="font-mono text-xs text-ide-subtle" title={text}>
+          {label}
+        </code>
+      )}
+      <CopyButton value={text} showLabel={false} title="Copy full value" />
     </div>
   );
 }

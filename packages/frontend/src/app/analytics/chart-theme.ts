@@ -28,3 +28,13 @@ export const gridProps = {
 export const axisLabelStyle = { fill: ide.faint, fontSize: 11 } as const;
 
 export const tooltipCursor = { fill: "rgb(255 255 255 / 0.04)" } as const;
+
+/** "#6366F1" + 0.4 → "rgb(99 102 241 / 0.4)" */
+export function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace("#", "");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
+  return `rgb(${r} ${g} ${b} / ${alpha})`;
+}
+
+/** Secondary series colour (e.g. returning users next to the primary series). */
+export const SECONDARY = ide.muted;

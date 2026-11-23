@@ -4,7 +4,7 @@ import { SectionLabel } from "@/components/ui/section-label";
 
 interface StatCardProps {
   title: string;
-  value: string | number;
+  value: ReactNode;
   icon: ReactNode;
   /** Series colour for the icon tile (from chart-theme SERIES). */
   color: string;
@@ -23,9 +23,9 @@ export function StatCard({ title, value, icon, color, tint, children, className 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <SectionLabel>{title}</SectionLabel>
-          <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-ide-text">
+          <div className="mt-2 flex h-8 items-center text-2xl font-semibold tabular-nums tracking-tight text-ide-text">
             {typeof value === "number" ? numberFormat.format(value) : value}
-          </p>
+          </div>
         </div>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: tint, color }}>
           {icon}

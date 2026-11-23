@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, Query } from "@nestjs/common";
+import { Controller, Post, Body, Get, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import { AnalyticsService } from "./analytics.service";
 import {
   RecordDeployDto,
@@ -6,6 +7,30 @@ import {
   RecordCompileDto,
 } from "./analytics.dto";
 import { parseGranularity, parseRangeKey } from "src/libs/range";
+import {
+  parseActionType,
+  parseIntParam,
+  parseOrder,
+  parseSort,
+  parseText,
+  parseTimeZone,
+} from "src/libs/params";
+import { ActivityFilters } from "./analytics.service";
+
+type ActivityQuery = Record<
+  "type" | "wallet" | "q" | "sort" | "order",
+  string | undefined
+>;
+
+function parseActivityFilters(query: ActivityQuery): ActivityFilters {
+  return {
+    type: parseActionType(query.type),
+    wallet: parseText(query.wallet, "wallet", 64),
+    q: parseText(query.q, "q"),
+    sort: parseSort(query.sort),
+    order: parseOrder(query.order),
+  };
+}
 
 @Controller("analytics")
 export class AnalyticsController {
@@ -99,6 +124,94 @@ export class AnalyticsController {
       parseRangeKey(range),
       parseGranularity(granularity),
     );
+  }
+
+  @Get("overview")
+  async getOverview(@Query("range") range?: string) {
+    return this.analyticsService.getOverview(parseRangeKey(range));
+  }
+
+  @Get("top-contracts")
+  async getTopContracts(
+    @Query("range") range?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.analyticsService.getTopContracts(
+      parseRangeKey(range),
+      parseIntParam(limit, { name: "limit", fallback: 10, min: 1, max: 50 }),
+    );
+  }
+
+  @Get("top-wallets")
+  async getTopWallets(
+    @Query("range") range?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.analyticsService.getTopWallets(
+      parseRangeKey(range),
+      parseIntParam(limit, { name: "limit", fallback: 10, min: 1, max: 50 }),
+    );
+  }
+
+  @Get("new-vs-returning")
+  async getNewVsReturning(
+    @Query("range") range?: string,
+    @Query("granularity") granularity?: string,
+  ) {
+    return this.analyticsService.getNewVsReturning(
+      parseRangeKey(range),
+      parseGranularity(granularity, "week"),
+    );
+  }
+
+  @Get("heatmap")
+  async getHeatmap(@Query("range") range?: string, @Query("tz") tz?: string) {
+    return this.analyticsService.getHeatmap(
+      parseRangeKey(range),
+      parseTimeZone(tz),
+    );
+  }
+
+  @Get("activity")
+  async getActivity(
+    @Query()
+    query: ActivityQuery & { range?: string; page?: string; pageSize?: string },
+  ) {
+    return this.analyticsService.getActivityPage(
+      parseRangeKey(query.range),
+      parseActivityFilters(query),
+      parseIntParam(query.page, {
+        name: "page",
+        fallback: 1,
+        min: 1,
+        max: 100_000,
+      }),
+      parseIntParam(query.pageSize, {
+        name: "pageSize",
+        fallback: 25,
+        min: 1,
+        max: 100,
+      }),
+    );
+  }
+
+  @Get("activity/export")
+  async exportActivity(
+    @Query() query: ActivityQuery & { range?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const range = parseRangeKey(query.range);
+    const csv = await this.analyticsService.exportActivityCsv(
+      range,
+      parseActivityFilters(query),
+    );
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="solang-activity-${range}-${date}.csv"`,
+    );
+    return csv;
   }
 
   @Get("info")

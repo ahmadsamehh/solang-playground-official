@@ -14,6 +14,8 @@ model User {
   transactions Transaction[]
   contracts    Contract[]
   activities   Activity[]
+
+  @@index([createdAt])
 }
 
 model Contract {
@@ -36,6 +38,11 @@ model Transaction {
   contract   Contract?       @relation(fields: [contractId], references: [id])
   method     String?
   createdAt  DateTime        @default(now())
+
+  @@index([createdAt])
+  @@index([type, createdAt])
+  @@index([userId])
+  @@index([contractId])
 }
 
 model Activity {
@@ -44,6 +51,9 @@ model Activity {
   userId    String?
   user      User?        @relation(fields: [userId], references: [id])
   createdAt DateTime     @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 enum TransactionType {

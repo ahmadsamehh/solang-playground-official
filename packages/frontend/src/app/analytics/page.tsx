@@ -1,52 +1,18 @@
-import { Activity, TrendingUp, Users, Zap } from "lucide-react";
-export const dynamic = "force-dynamic";
-import { StatCard } from "./components/stat-card";
-import { ActivityChart } from "./components/activity-chart";
-import { DeployInvokeMix } from "./components/deploy-invoke-mix";
-import { RecentActivityTable } from "./components/recent-activity-table";
-import { getAnalyticsUrl } from "@/lib/utils";
-import { ActiveUsersChart } from "./components/active-users-chart";
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import { AnalyticsDashboard } from "./components/dashboard";
 import { AnalyticsTopBar } from "./components/analytics-top-bar";
-import { SERIES } from "./chart-theme";
-import { brand } from "@/lib/theme-tokens";
-import { DEFAULT_RANGE } from "./api";
 
-async function getSummaryData() {
-  const url = getAnalyticsUrl();
-  const resp = await fetch(`${url}/analytics/summary`);
-  const data = await resp.json();
-  return data as {
-    users: number;
-    transactions: number;
-    deploys: number;
-    invokes: number;
-  };
-}
+export const metadata: Metadata = {
+  title: "Solang Analytics",
+  description: "Usage of the Solang Playground on Stellar testnet",
+};
 
-export default async function AnalyticsDashboard() {
-  const { users, transactions, deploys, invokes } = await getSummaryData();
-  const range = DEFAULT_RANGE;
+/** Shell only: all data loads client-side through /api/analytics so the range lives in the URL. */
+export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-ide-bg font-sans text-ide-text">
-      <AnalyticsTopBar />
-
-      <main className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Total Deployments" value={deploys} icon={<Activity size={16} />} color={SERIES.DEPLOY.color} tint={SERIES.DEPLOY.muted} />
-          <StatCard title="Contract Invocations" value={invokes} icon={<Zap size={16} />} color={SERIES.INVOKE.color} tint={SERIES.INVOKE.muted} />
-          <StatCard title="Unique Users" value={users} icon={<Users size={16} />} color={brand.soft} tint={brand.muted} />
-          <StatCard title="Total Transactions" value={transactions} icon={<TrendingUp size={16} />} color={SERIES.COMPILE.soft} tint={SERIES.COMPILE.muted} />
-        </div>
-
-        <ActivityChart range={range} />
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <ActiveUsersChart range={range} />
-          <DeployInvokeMix range={range} />
-        </div>
-
-        <RecentActivityTable />
-      </main>
-    </div>
+    <Suspense fallback={<AnalyticsTopBar />}>
+      <AnalyticsDashboard />
+    </Suspense>
   );
 }

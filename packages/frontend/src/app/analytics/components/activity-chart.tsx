@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Panel } from "./panel";
 import { ChartTooltip } from "./chart-tooltip";
+import { QueryState } from "./query-state";
 import { SERIES, axisLabelStyle, axisProps, gridProps } from "../chart-theme";
 import { analyticsKeys, fetchActivity, timeseriesGranularity, type RangeKey } from "../api";
 import { bucketToTs, evenlySpaced, formatBucketFull, formatBucketTick, spansYears } from "@/lib/format";
@@ -17,10 +18,12 @@ const LINES = [
 
 export function ActivityChart({ range }: { range: RangeKey }) {
   const granularity = timeseriesGranularity(range);
-  const { data = [] } = useQuery({
+  const query = useQuery({
     queryKey: analyticsKeys.activity(range, granularity),
     queryFn: () => fetchActivity(range, granularity),
+    placeholderData: keepPreviousData,
   });
+  const data = useMemo(() => query.data ?? [], [query.data]);
 
   // Continuous time axis: x is a timestamp, every bucket present (zeros included).
   const points = useMemo(() => data.map((d) => ({ ...d, ts: bucketToTs(d.bucket) })), [data]);
@@ -31,6 +34,12 @@ export function ActivityChart({ range }: { range: RangeKey }) {
 
   return (
     <Panel title={`Activity Over Time · per ${granularity}`}>
+      <QueryState
+        query={query}
+        height={300}
+        isEmpty={(rows) => rows.every((r) => r.deployments + r.invocations + ("compiles" in r ? r.compiles : 0) === 0)}
+      >
+        {() => (
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 16 }}>
           <CartesianGrid {...gridProps} />
@@ -41,6 +50,8 @@ export function ActivityChart({ range }: { range: RangeKey }) {
             domain={["dataMin", "dataMax"]}
             {...axisProps}
             ticks={ticks}
+            interval="preserveStartEnd"
+            minTickGap={16}
             tickFormatter={(ts: number) => formatBucketTick(ts, granularity, withYear)}
             label={{ value: granularity === "day" ? "Day (UTC)" : "ISO week (UTC)", position: "insideBottom", offset: -12, style: axisLabelStyle }}
           />
@@ -66,6 +77,8 @@ export function ActivityChart({ range }: { range: RangeKey }) {
           ))}
         </LineChart>
       </ResponsiveContainer>
+        )}
+      </QueryState>
     </Panel>
   );
 }

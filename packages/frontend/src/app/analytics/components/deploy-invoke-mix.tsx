@@ -1,20 +1,23 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Panel } from "./panel";
 import { ChartTooltip } from "./chart-tooltip";
+import { QueryState } from "./query-state";
 import { SERIES, axisLabelStyle, axisProps, gridProps, tooltipCursor } from "../chart-theme";
 import { analyticsKeys, fetchActivity, type RangeKey } from "../api";
 import { evenlySpaced, formatBucketFull, formatBucketTick, formatNumber, spansYears } from "@/lib/format";
 
 /** Weekly stacked deploys vs invokes, with the overall ratio for the range. */
 export function DeployInvokeMix({ range }: { range: RangeKey }) {
-  const { data = [] } = useQuery({
+  const query = useQuery({
     queryKey: analyticsKeys.activity(range, "week"),
     queryFn: () => fetchActivity(range, "week"),
+    placeholderData: keepPreviousData,
   });
+  const data = useMemo(() => query.data ?? [], [query.data]);
 
   const totals = useMemo(
     () => data.reduce((acc, d) => ({ deploys: acc.deploys + d.deployments, invokes: acc.invokes + d.invocations }), { deploys: 0, invokes: 0 }),
@@ -35,6 +38,12 @@ export function DeployInvokeMix({ range }: { range: RangeKey }) {
         </span>
       }
     >
+      <QueryState
+        query={query}
+        height={300}
+        isEmpty={(rows) => rows.every((r) => r.deployments + r.invocations + ("compiles" in r ? r.compiles : 0) === 0)}
+      >
+        {() => (
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 16 }}>
           <CartesianGrid {...gridProps} />
@@ -42,7 +51,8 @@ export function DeployInvokeMix({ range }: { range: RangeKey }) {
             dataKey="bucket"
             {...axisProps}
             ticks={ticks}
-            interval={0}
+            interval="preserveStartEnd"
+                minTickGap={16}
             tickFormatter={(b: string) => formatBucketTick(b, "week", withYear)}
             label={{ value: "ISO week (UTC)", position: "insideBottom", offset: -12, style: axisLabelStyle }}
           />
@@ -61,6 +71,8 @@ export function DeployInvokeMix({ range }: { range: RangeKey }) {
           <Bar dataKey="invocations" name={SERIES.INVOKE.label} stackId="tx" fill={SERIES.INVOKE.color} radius={[3, 3, 0, 0]} maxBarSize={36} />
         </BarChart>
       </ResponsiveContainer>
+        )}
+      </QueryState>
     </Panel>
   );
 }
